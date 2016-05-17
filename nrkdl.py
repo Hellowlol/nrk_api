@@ -181,10 +181,10 @@ def _build(item):
 
 def parse_url(s):
     from bs4 import BeautifulSoup as BS
-    urls = s.split(',')
+    urls = [u.strip() for u in s.split(',')]
     to_dl = []
     for s in urls:
-        r = requests.get(s)
+        r = requests.get(s.strip())
         html = r.content
 
         # DROP bs and use regex?
@@ -199,6 +199,8 @@ def parse_url(s):
             if meta_dict.get('programid'):
                 media = NRK().program(meta_dict.get('programid'))[0]
                 to_dl.append(media.download())
+            else:
+                print('Url has no program id')
 
     if to_dl:
         _download_all(to_dl)
@@ -374,7 +376,6 @@ class Media(object):
 
     def download(self, path=None):
         if self.available is False or self.media_url is None:
-
             print('Cant download %s' % self.name)
             return
 
@@ -382,7 +383,7 @@ class Media(object):
             path = SAVE_PATH
 
         try:
-            os.makedirs(self.name)
+            os.makedirs(os.path.join(SAVE_PATH, self.name))
         except:
             pass
 
@@ -603,7 +604,7 @@ if __name__ == '__main__':
     if p.url:
         parse_url(p.url)
 
-    if p.search:
+    elif p.search:
         c = NRK()._console(p.search)
 
 
