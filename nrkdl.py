@@ -58,6 +58,13 @@ except:
     pass
 
 
+def c_out(s):
+    if not PY3:
+        return s.encode(ENCODING, 'ignore')
+    else:
+        return s
+
+
 def timeme(func):
     @wraps(func)
     def inner(*args, **kwargs):
@@ -125,7 +132,7 @@ def _for_grabs(l, print_args=None):
     if print_args is None:
         print_args = []
     for i, stuff in reversed(list(enumerate(l))):
-        x = [stuff.get(k) for k in print_args if stuff.get(k)]
+        x = [c_out(stuff.get(k)) for k in print_args if stuff.get(k)]
         x.insert(0, str(i))
         print(' '.join(x))
 
@@ -288,7 +295,7 @@ class NRK(object):
         else:
             # use reverse since 0 is the closest match and i dont want to scoll
             for i, hit in reversed(list(enumerate(response['hits']))):
-                print('%s: %s' % (i, hit['hit']['title']))
+                print('%s: %s' % (i, c_out(hit['hit']['title'])))
 
             # If there are more then one result, the user should pick a show
             if len(response['hits']) > 1:
