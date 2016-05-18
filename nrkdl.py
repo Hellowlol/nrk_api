@@ -131,16 +131,33 @@ def _for_grabs(l, print_args=None):
 
     if print_args is None:
         print_args = []
+
     for i, stuff in reversed(list(enumerate(l))):
-        x = [c_out(stuff.get(k)) for k in print_args if stuff.get(k)]
-        x.insert(0, str(i))
-        print(' '.join(x))
+
+        if not isinstance(stuff, (list, dict, tuple)):
+            try:
+                x = [c_out(getattr(stuff, x)) for x in print_args]
+                x.insert(0, str(i))
+                print(' '.join(x))
+            except Exception as e:
+                print('some crap happend %s' % e)
+                pass
+        elif isinstance(stuff, tuple):
+            x = [c_out(stuff[x]) for x in print_args if stuff[x]]
+            x.insert(0, str(i))
+            print(' '.join(x))
+        else:
+            # dict
+            x = [c_out(stuff.get(k)) for k in print_args if stuff.get(k)]
+            x.insert(0, str(i))
+            print(' '.join(x))
 
     # select the grab...
     grab = raw_input('\nPick a show or use slice notation\n')
     # Check if was slice..
     if any(s in grab for s in (':', '::', '-')):
         grab = slice(*map(lambda x: int(x.strip()) if x.strip() else None, grab.split(':')))
+        print(grab)
         l = l[grab]
     else:
         l = l[int(grab)]
@@ -149,6 +166,53 @@ def _for_grabs(l, print_args=None):
             l = [l]
 
     return l
+
+"""
+def _for_obj(l, print_args=None):
+
+    if not isinstance(l, list):
+        l = [l]
+
+    was_tuple = False
+    for i, stuff in reversed(list(enumerate(l))):
+        if not isinstance(stuff, (list, dict)):
+            try:
+                x = [getattr(stuff, x) for x in print_args]
+                x.insert(0, str(i))
+                print(' '.join(x))
+            except Exception as e:
+                print('some crap happend %s' % e)
+                pass
+        elif isinstance(stuff, tuple):
+            was_tuple = True
+            x = [stuff[0]]
+            print(x)
+            x.insert(0, str(i))
+            print(' '.join(x))
+        else:
+            pass
+            #x = [c_out(stuff.get(k)) for k in print_args if stuff.get(k)]
+            #x.insert(0, str(i))
+            #print(' '.join(x))
+
+        # select the grab...
+    grab = raw_input('\nPick a show or use slice notation\n')
+    # Check if was slice..
+    if any(s in grab for s in (':', '::', '-')):
+        grab = slice(*map(lambda x: int(x.strip()) if x.strip() else None, grab.split(':')))
+        l = l[grab] if was_tuple is False else l[grab][1]
+    else:
+        l = l[int(grab)] if was_tuple is False else l[grab][1]
+
+        if isinstance(l, dict):
+            l = [l]
+
+    return l
+"""
+
+
+
+
 
 
 def _fetch(path, *args, **kwargs):
@@ -361,6 +425,26 @@ class NRK(object):
                 else:
                     print('Nothing to download')
 
+    def _browse(self):
+        categories = _for_grabs(self.categories(), ['title'])
+        what_programs = [('Popular programs', self.popular_programs),
+                         ('Recommended programs', self.recommended_programs),
+                         ('Recent programs', self.recent_programs)
+                         ]
+
+        x = _for_grabs(what_programs, [0])
+        media_element = _for_grabs(x[1](categories.id), ['title'])
+        media_element = [media_element]
+        # type_list should be a media object
+        print('Found %s media elements' % len(media_element))
+        for m_e in media_element:
+            try:
+
+                print(c_out('\t %s' % m_e.name))
+                print('\n')
+            except KeyboardInterrupt:
+                break
+
 
 class Media(object):
     def __init__(self, data, *args, **kwargs):
@@ -444,6 +528,7 @@ class Series(Media):
         self.type = 'serie'
         self.id = data.get('seriesId'),
         self.title = data['title'].strip()
+        self.name = data['title'].strip() # test
         self.description = data.get('description', '')
         self.legal_age = data.get('legalAge') or data.get('aldersgrense')
         self.image_id = data.get('seriesImageId', data.get('imageId', None))
@@ -496,8 +581,10 @@ class Downloader(object):
 class Category(Media):
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
-        self.name = data.get('categoryId', None)
-        self.id = data.get('displayValue', None)
+        self.id = data.get('categoryId', None)
+        self.name = data.get('displayValue', None)
+        self.title = data.get('displayValue', None)
+
 
 
 class Subtitle(object):
@@ -585,6 +672,9 @@ if __name__ == '__main__':
     #parser.add_argument('-c', '--categories', default=False,
     #                    required=False, help='Categories') #TODO?
 
+    parser.add_argument('-b', '--browse', action='store_true', default=False,
+                        required=False, help='Categories') #TODO?
+
     parser.add_argument('-save', '--save_path', default=False,
                         required=False, help='Download to this folder')
 
@@ -606,6 +696,9 @@ if __name__ == '__main__':
 
     elif p.search:
         c = NRK()._console(p.search)
+
+    elif p.browse:
+        c = NRK()._browse()
 
 
 
