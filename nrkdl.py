@@ -134,7 +134,7 @@ def _for_grabs(l, print_args=None):
 
     for i, stuff in reversed(list(enumerate(l))):
 
-        if not isinstance(stuff, (list, dict, tuple)):
+        if not isinstance(stuff, (list, dict, tuple)):  # classes, functions
             try:
                 x = [c_out(getattr(stuff, x)) for x in print_args]
                 x.insert(0, str(i))
@@ -142,12 +142,12 @@ def _for_grabs(l, print_args=None):
             except Exception as e:
                 print('some crap happend %s' % e)
                 pass
-        elif isinstance(stuff, tuple):
+        elif isinstance(stuff, tuple):  # unbound, used to build a menu
             x = [c_out(stuff[x]) for x in print_args if stuff[x]]
             x.insert(0, str(i))
             print(' '.join(x))
         else:
-            # dict
+            # Normally a dict
             x = [c_out(stuff.get(k)) for k in print_args if stuff.get(k)]
             x.insert(0, str(i))
             print(' '.join(x))
@@ -157,7 +157,6 @@ def _for_grabs(l, print_args=None):
     # Check if was slice..
     if any(s in grab for s in (':', '::', '-')):
         grab = slice(*map(lambda x: int(x.strip()) if x.strip() else None, grab.split(':')))
-        print(grab)
         l = l[grab]
     else:
         l = l[int(grab)]
@@ -166,53 +165,6 @@ def _for_grabs(l, print_args=None):
             l = [l]
 
     return l
-
-"""
-def _for_obj(l, print_args=None):
-
-    if not isinstance(l, list):
-        l = [l]
-
-    was_tuple = False
-    for i, stuff in reversed(list(enumerate(l))):
-        if not isinstance(stuff, (list, dict)):
-            try:
-                x = [getattr(stuff, x) for x in print_args]
-                x.insert(0, str(i))
-                print(' '.join(x))
-            except Exception as e:
-                print('some crap happend %s' % e)
-                pass
-        elif isinstance(stuff, tuple):
-            was_tuple = True
-            x = [stuff[0]]
-            print(x)
-            x.insert(0, str(i))
-            print(' '.join(x))
-        else:
-            pass
-            #x = [c_out(stuff.get(k)) for k in print_args if stuff.get(k)]
-            #x.insert(0, str(i))
-            #print(' '.join(x))
-
-        # select the grab...
-    grab = raw_input('\nPick a show or use slice notation\n')
-    # Check if was slice..
-    if any(s in grab for s in (':', '::', '-')):
-        grab = slice(*map(lambda x: int(x.strip()) if x.strip() else None, grab.split(':')))
-        l = l[grab] if was_tuple is False else l[grab][1]
-    else:
-        l = l[int(grab)] if was_tuple is False else l[grab][1]
-
-        if isinstance(l, dict):
-            l = [l]
-
-    return l
-"""
-
-
-
-
 
 
 def _fetch(path, *args, **kwargs):
@@ -433,17 +385,23 @@ class NRK(object):
                          ]
 
         x = _for_grabs(what_programs, [0])
-        media_element = _for_grabs(x[1](categories.id), ['title'])
-        media_element = [media_element]
+        media_element = [_for_grabs(x[1](categories.id), ['title'])]
         # type_list should be a media object
         print('Found %s media elements' % len(media_element))
         for m_e in media_element:
-            try:
+            for z in m_e:
+                print(c_out('%s\n' % z.name))
+                print(c_out('%s\n' % z.description))
+                a = raw_input('Do you wish to download this? y/n\n')
+                if a == 'y':
+                    Downloader().add(z.download())
 
-                print(c_out('\t %s' % m_e.name))
-                print('\n')
-            except KeyboardInterrupt:
-                break
+        aa = raw_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
+        d = self.downloads()
+        if aa == 'y':
+            d.start()
+        else:
+            d.clear()
 
 
 class Media(object):
@@ -482,7 +440,7 @@ class Media(object):
         fp = os.path.join(base_folder, title)
 
         if url:
-            if CLI is False:
+            if CLI is False: # add fix for -browse
                 return Downloader().add((url, q, fp))
             else:
                 return (url, q, fp)
