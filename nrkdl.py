@@ -384,7 +384,7 @@ class NRK(object):
                          ('Recent programs', self.recent_programs)
                          ]
 
-        x = _for_grabs(what_programs, [0])
+        x = _for_grabs(what_programs, [0]) # should be list?
         media_element = [_for_grabs(x[1](categories.id), ['title'])]
         # type_list should be a media object
         print('Found %s media elements' % len(media_element))
