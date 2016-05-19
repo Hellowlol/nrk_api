@@ -22,11 +22,11 @@ https://github.com/tamland/xbmc-addon-nrk/blob/master/nrktv.py
 
 """
 
-
 if sys.version_info >= (3, 0):
     PY3 = True
     raw_input = input
     xrange = range
+
 else:
     PY3 = False
 
@@ -43,8 +43,8 @@ session.headers['app-version-android'] = '999'
 CLI = False
 ENCODING = None
 SAVE_PATH = os.path.join(os.getcwd(), 'downloads')
-QUITE = True
 DRY_RUN = False
+VERBOSE = False
 
 try:
     locale.setlocale(locale.LC_ALL, "")
@@ -79,22 +79,23 @@ def dl(item):
     """Downloads a media file
 
        [('url', 'high', 'filepath')]
+
     """
 
     url, quality, filename = item
 
     if DRY_RUN:
-        print('Should have downloaded %s because but didnt because of -dry_run\n' % filename)
+        print(c_out('Should have downloaded %s because but didnt because of -dry_run\n' % filename))
         return
 
     # encode to the consoles damn charset...
     if not PY3 and os.name == 'nt':
         # subprocess and py2 dont like unicode on windows
         url = url.encode(ENCODING)
-        filename = filename.encode(ENCODING)
+        filename = filename.encode(ENCODING, 'ignore')
 
-    # -n no overwrite
-    cmd = 'ffmpeg -i %s -n -loglevel quiet -vcodec copy -acodec ac3 "%s.mkv" \n' % (url, filename)
+    q = '' if VERBOSE else '-loglevel quiet '
+    cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv" \n' % (q, url, filename)
     process = subprocess.Popen(cmd,
                                shell=True,
                                stdin=subprocess.PIPE,
@@ -116,13 +117,16 @@ def _download_all(items):
         fut = {executor.submit(dl, item): item for item in items}
         if CLI:
             for j in tqdm.tqdm(futures.as_completed(fut), total=len(items)):
-                res = j.result()
+                try:
+                    res = j.result()
+                except Exception as e:
+                    print(e)
         else:
             for j in futures.as_completed(fut):
                 res = j.result()
 
 
-def _for_grabs(l, print_args=None):
+def _console_select(l, print_args=None):
     """ Helper function to allow grab dicts from list with ints and slice. """
     print('\n')
 
@@ -139,13 +143,15 @@ def _for_grabs(l, print_args=None):
                 x = [c_out(getattr(stuff, x)) for x in print_args]
                 x.insert(0, str(i))
                 print(' '.join(x))
+
             except Exception as e:
                 print('some crap happend %s' % e)
-                pass
+
         elif isinstance(stuff, tuple):  # unbound, used to build a menu
             x = [c_out(stuff[x]) for x in print_args if stuff[x]]
             x.insert(0, str(i))
             print(' '.join(x))
+
         else:
             # Normally a dict
             x = [c_out(stuff.get(k)) for k in print_args if stuff.get(k)]
@@ -153,7 +159,7 @@ def _for_grabs(l, print_args=None):
             print(' '.join(x))
 
     # select the grab...
-    grab = raw_input('\nPick a show or use slice notation\n')
+    grab = raw_input('\nNumber or use slice notation\n')
     # Check if was slice..
     if any(s in grab for s in (':', '::', '-')):
         grab = slice(*map(lambda x: int(x.strip()) if x.strip() else None, grab.split(':')))
@@ -179,8 +185,12 @@ def _fetch(path, *args, **kwargs):
 
 def get_media_url(id=None):
     if id:
-        response = _fetch('programs/%s' % id)
-        return response.get('mediaUrl', '')
+        try:
+            response = _fetch('programs/%s' % id)
+            return response.get('mediaUrl', '')
+        except Exception as e:
+            print(e)
+            return {}
 
 
 def _build(item):
@@ -196,27 +206,23 @@ def _build(item):
 
 
 def parse_url(s):
-    from bs4 import BeautifulSoup as BS
-    urls = [u.strip() for u in s.split(',')]
+    urls = [u.strip() for u in s.split(' ')]
     to_dl = []
+    # grouped regex for the meta tag
+    regex = re.compile(ur'<meta\sname="(.*?)"\scontent="(.*?)"\s/>')
+
     for s in urls:
-        r = requests.get(s.strip())
+        r = requests.get(s)
         html = r.content
 
-        # DROP bs and use regex?
-        # regex = re.compile(ur'<meta\s?name="(.+")\scontent="(.+)">')
-        # re.findall(p, html)
-
-        soup = BS(html, 'html5lib')
-        pe = soup.find_all(id="playerelement")
-
-        if pe:
-            meta_dict = {d.get('name'): d.get('content') for d in soup.findAll('meta') if d.get('name') != 'lastTransmissionDate'}
-            if meta_dict.get('programid'):
-                media = NRK().program(meta_dict.get('programid'))[0]
-                to_dl.append(media.download())
-            else:
-                print('Url has no program id')
+        meta_tags = regex.findall(html)
+        # only add it to the dict if the value exist
+        meta = {k: v for k, v in meta_tags if len(v)}
+        if meta.get('programid'):
+            media = NRK().program(meta.get('programid'))[0]
+            to_dl.append(media.download())
+        else:
+            print('The url has no programid')
 
     if to_dl:
         _download_all(to_dl)
@@ -300,6 +306,7 @@ class NRK(object):
 
     def _console(self, q):
         """ Used by CLI """
+        # rewrite this or keep it for speed?
 
         to_download = []
         all_stuff = []
@@ -353,7 +360,7 @@ class NRK(object):
                         all_stuff = [episode for episode in show['programs'] if episode['isAvailable']]
 
                     # Allow selection of episodes
-                    to_download = _for_grabs(all_stuff, ['title', 'episodeNumberOrDate'])
+                    to_download = _console_select(all_stuff, ['title', 'episodeNumberOrDate'])
 
                 elif sr['type'] == 'program':
                     to_download.append(sr['hit'])
@@ -367,6 +374,9 @@ class NRK(object):
                             else:
                                 filename = '%s' % d['title'].replace(':', '')
 
+                            #  clean up for ffmpeg
+                            filename = re.sub('[/\\\?%\*:|"<>]', '', filename)  # new check this
+
                             f_path = os.path.join(base_folder, filename)
                             # set quality # TODO
                             t = (has_url, 'high', f_path)
@@ -378,17 +388,19 @@ class NRK(object):
                     print('Nothing to download')
 
     def _browse(self):
-        categories = _for_grabs(self.categories(), ['title'])
-        what_programs = [('Popular programs', self.popular_programs),
-                         ('Recommended programs', self.recommended_programs),
-                         ('Recent programs', self.recent_programs)
+        categories = _console_select(self.categories(), ['title'])
+        what_programs = [('Popular', self.popular_programs),
+                         ('Recommended', self.recommended_programs),
+                         ('Recent', self.recent_programs)
                          ]
 
-        x = _for_grabs(what_programs, [0]) # should be list?
-        media_element = [_for_grabs(x[1](categories.id), ['title'])]
+        x = _console_select(what_programs, [0])  # should be list?
+        media_element = [_console_select(x[1](categories.id), ['title'])]
         # type_list should be a media object
         print('Found %s media elements' % len(media_element))
         for m_e in media_element:
+            if not isinstance(m_e, list):
+                m_e = [m_e]
             for z in m_e:
                 print(c_out('%s\n' % z.name))
                 print(c_out('%s\n' % z.description))
@@ -399,7 +411,9 @@ class NRK(object):
         aa = raw_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
         d = self.downloads()
         if aa == 'y':
-            d.start()
+            print(Downloader().files_to_download)
+            bb = d.start()
+            print(bb)
         else:
             d.clear()
 
@@ -408,6 +422,7 @@ class Media(object):
     def __init__(self, data, *args, **kwargs):
         self.data = data
         self.name = data.get('name', '') or data.get('title', '')
+        self.name = self.name.strip()
         self.type = data.get('type', None)
         self.id = data.get('id', None)
         self.available = data.get('isAvailable', False)
@@ -433,6 +448,9 @@ class Media(object):
         if 'episodeNumberOrDate' in self.data:
             title += '_%s' % self.data.get('episodeNumberOrDate', '').replace(':', '')
 
+        # remove stuff that ffmpeg could complain about
+        title = re.sub('[/\\\?%\*:|"<>]', '_', title)
+
         q = 'high'  # fix me
         url = self.media_url
 
@@ -440,21 +458,18 @@ class Media(object):
         fp = os.path.join(base_folder, title)
 
         if url:
-            if CLI is False: # add fix for -browse
+            if CLI is False:  # add fix for -browse
                 return Downloader().add((url, q, fp))
             else:
                 return (url, q, fp)
         else:
             print("No download url")
 
-    #def console(self):
-    #    return {'name': self.name, 'id': self.id}
-
 
 class Episode(Media):
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
-        self.__dict__.update(data)
+        #self.__dict__.update(data)
         self.ep_name = data.get('episodeNumberOrDate', '')
         self.category = Category(data.get('category') if 'category' in data else None)
 
@@ -472,7 +487,7 @@ class Program(Media):
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
         self.type = 'program'
-        self.__dict__.update(data)
+        #self.__dict__.update(data) # this needed?
         self.programid = data.get('programId')
         self.id = data.get('programId')
         self.description = data.get('description', '')
@@ -505,7 +520,7 @@ class Channel(Media):
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
         self.channel_id = data.get('channelId')
-        self.title = data.get('title')
+        self.title = data.get('title').strip()
         self.id_live = data.get('isLive')
         self.has_epg = data.get('hasEpg')
         self.priority = data.get('priority')
@@ -522,7 +537,7 @@ class Downloader(object):
 
     @classmethod
     def add(cls, media):
-        print("downloder add got %s" % ''.join(media))
+        print("downloder add got %s" % c_out(', '.join(media)))
         cls.files_to_download.append(media)
 
     @classmethod
@@ -542,7 +557,6 @@ class Category(Media):
         self.id = data.get('categoryId', None)
         self.name = data.get('displayValue', None)
         self.title = data.get('displayValue', None)
-
 
 
 class Subtitle(object):
@@ -627,9 +641,6 @@ if __name__ == '__main__':
     parser.add_argument('-u', '--url', default=False,
                         required=False, help='Download show for the interwebz')
 
-    #parser.add_argument('-c', '--categories', default=False,
-    #                    required=False, help='Categories') #TODO?
-
     parser.add_argument('-b', '--browse', action='store_true', default=False,
                         required=False, help='Categories') #TODO?
 
@@ -639,9 +650,13 @@ if __name__ == '__main__':
     parser.add_argument('-dr', '--dry_run', action='store_true', default=False,
                         required=False, help='Dry run, dont download anything')
 
+    parser.add_argument('-v', '--verbose', action='store_true', default=False,
+                        required=False, help='Show ffmpeg outup')
+
     p = parser.parse_args()
 
     DRY_RUN = p.dry_run
+    VERBOSE = p.verbose
 
     CLI = True
     ENCODING = p.encoding
