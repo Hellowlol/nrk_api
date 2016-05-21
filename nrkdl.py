@@ -65,6 +65,11 @@ def c_out(s):
         return s
 
 
+def clean_name(s):
+    s = re.sub(ur'[/\\\?%\*|"<>]', '', s).replace(':', '_')
+    return s
+
+
 def timeme(func):
     @wraps(func)
     def inner(*args, **kwargs):
@@ -341,7 +346,7 @@ class NRK(object):
                 search_res = [search_res]
 
             for sr in search_res:
-                name = sr['hit']['title'].replace(':', '')  # ffppeg dont like : in the title
+                name = clean_name(sr['hit']['title'])  # ffppeg dont like : in the title
 
                 base_folder = os.path.join(SAVE_PATH, name)
 
@@ -370,14 +375,14 @@ class NRK(object):
                         has_url = get_media_url(d['programId'])
                         if has_url:
                             if d.get('episodeNumberOrDate'):
-                                filename = '%s_%s' % (d['title'].replace(':', ''), d['episodeNumberOrDate'].replace(':', '_'))
+                                filename = '%s %s' % (d['title'], d['episodeNumberOrDate'])
                             else:
-                                filename = '%s' % d['title'].replace(':', '')
+                                filename = '%s' % d['title']
 
-                            #  clean up for ffmpeg
-                            filename = re.sub('[/\\\?%\*:|"<>]', '', filename)  # new check this
+                            filename = clean_name(filename)
 
                             f_path = os.path.join(base_folder, filename)
+                            print(f_path)
                             # set quality # TODO
                             t = (has_url, 'high', f_path)
                             all_streams.append(t)
@@ -389,13 +394,13 @@ class NRK(object):
 
     def _browse(self):
         categories = _console_select(self.categories(), ['title'])
-        what_programs = [('Popular', self.popular_programs),
-                         ('Recommended', self.recommended_programs),
-                         ('Recent', self.recent_programs)
+        what_programs = [('Popular ' + categories.name, self.popular_programs),
+                         ('Recommended ' + categories.name, self.recommended_programs),
+                         ('Recent ' + categories.name, self.recent_programs)
                          ]
 
         x = _console_select(what_programs, [0])  # should be list?
-        media_element = [_console_select(x[1](categories.id), ['title'])]
+        media_element = [_console_select(x[1](categories.id), ['full_title'])]
         # type_list should be a media object
         print('Found %s media elements' % len(media_element))
         for m_e in media_element:
@@ -408,14 +413,13 @@ class NRK(object):
                 if a == 'y':
                     Downloader().add(z.download())
 
-        aa = raw_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
-        d = self.downloads()
-        if aa == 'y':
-            print(Downloader().files_to_download)
-            bb = d.start()
-            print(bb)
-        else:
-            d.clear()
+        if len(self.downloads()):
+            aa = raw_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
+            d = self.downloads()
+            if aa == 'y':
+                d.start()
+            else:
+                d.clear()
 
 
 class Media(object):
@@ -439,23 +443,22 @@ class Media(object):
         if path is None:
             path = SAVE_PATH
 
+        name = clean_name(self.name)
         try:
-            os.makedirs(os.path.join(SAVE_PATH, self.name))
+            os.makedirs(os.path.join(SAVE_PATH, name))
         except:
             pass
-
-        title = self.data['title'].replace(':', '')
-        if 'episodeNumberOrDate' in self.data:
-            title += '_%s' % self.data.get('episodeNumberOrDate', '').replace(':', '')
-
-        # remove stuff that ffmpeg could complain about
-        title = re.sub('[/\\\?%\*:|"<>]', '_', title)
 
         q = 'high'  # fix me
         url = self.media_url
 
-        base_folder = os.path.join(SAVE_PATH, self.name.replace(':', ''))
-        fp = os.path.join(base_folder, title)
+        base_folder = os.path.join(SAVE_PATH, name)
+        if 'episodeNumberOrDate' in self.data:
+            name += ' %s' % self.data.get('episodeNumberOrDate', '')
+        # remove stuff that ffmpeg could complain about
+        name = clean_name(name)
+
+        fp = os.path.join(base_folder, name)
 
         if url:
             if CLI is False:  # add fix for -browse
@@ -469,8 +472,9 @@ class Media(object):
 class Episode(Media):
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
-        #self.__dict__.update(data)
+        self.__dict__.update(data)
         self.ep_name = data.get('episodeNumberOrDate', '')
+        self.full_title = '%s %s' % (self.name, self.ep.name)
         self.category = Category(data.get('category') if 'category' in data else None)
 
 
@@ -487,8 +491,9 @@ class Program(Media):
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
         self.type = 'program'
-        #self.__dict__.update(data) # this needed?
+        self.__dict__.update(data)
         self.programid = data.get('programId')
+        self.full_title = self.name
         self.id = data.get('programId')
         self.description = data.get('description', '')
         self.available = data.get('isAvailable', False)
@@ -501,12 +506,17 @@ class Series(Media):
         self.type = 'serie'
         self.id = data.get('seriesId'),
         self.title = data['title'].strip()
-        self.name = data['title'].strip() # test
+        self.name = data['title'].strip()
         self.description = data.get('description', '')
         self.legal_age = data.get('legalAge') or data.get('aldersgrense')
         self.image_id = data.get('seriesImageId', data.get('imageId', None))
         self.available = data.get('isAvailable', False)
         self.category = Category(data.get('category') if 'category' in data else None)
+        # series object can act as a ep
+        if 'episodeNumberOrDate' in self.data:
+            self.full_title = '%s %s' % (self.name, data.get('episodeNumberOrDate', ''))
+        else:
+            self.full_title = self.title
 
     #def seasons(self):
         #  No usefull info
@@ -561,6 +571,7 @@ class Category(Media):
 
 class Subtitle(object):
     # untested, add translate?
+    @classmethod
     def get_subtitles(cls, video_id):
         html = session.get("http://v8.psapi.nrk.no/programs/%s/subtitles/tt" % video_id).text
         if not html:
@@ -633,16 +644,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-s', '--search', default=False,
-                        required=False, help='Search nrk for a show and download all available eps')
+                        required=False, help='Search nrk for a show and download files')
 
     parser.add_argument('-e', '--encoding', default='latin-1',
-                        required=False, help='Console encoding')
+                        required=False, help='Set encoding')
 
     parser.add_argument('-u', '--url', default=False,
-                        required=False, help='Download show for the interwebz')
+                        required=False, help='"url1 url2 url3"')
 
     parser.add_argument('-b', '--browse', action='store_true', default=False,
-                        required=False, help='Categories') #TODO?
+                        required=False, help='Browse')
 
     parser.add_argument('-save', '--save_path', default=False,
                         required=False, help='Download to this folder')
@@ -651,7 +662,7 @@ if __name__ == '__main__':
                         required=False, help='Dry run, dont download anything')
 
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
-                        required=False, help='Show ffmpeg outup')
+                        required=False, help='Show ffmpeg output')
 
     p = parser.parse_args()
 
@@ -674,25 +685,20 @@ if __name__ == '__main__':
         c = NRK()._browse()
 
 
-
-
 """
 Examples
 
 As a module:
 
 nrk = NRK()
-s = nrk.search("lille jack", strict=True)
-for e in s.episodes():
-    print(e.download())
+search = nrk.search("lille jack", strict=True)
+for s in search:
+    for e in s.episodes():
+        e.download()
 
 all_downloads = nrk.downloads()
 
 # How many files are we gonna download
-print(len(nrk.downloads()))
+print(len(all_downloads))
 all_downloads.start()
-
-
-CLI:
-    python nrkdl.py -s "lille jack"
 """
