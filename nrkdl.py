@@ -45,6 +45,10 @@ ENCODING = None
 SAVE_PATH = os.path.join(os.getcwd(), 'downloads')
 DRY_RUN = False
 VERBOSE = False
+WORKERS = 4
+SUBTITLE = False
+
+APICALLS = 0
 
 try:
     locale.setlocale(locale.LC_ALL, "")
@@ -66,7 +70,7 @@ def c_out(s):
 
 
 def clean_name(s):
-    s = re.sub(ur'[/\\\?%\*|"<>]', '', s).replace(':', '_')
+    s = re.sub(ur'[-/\\\?%\*|"<>]', '', s).replace(':', '_')
     return s
 
 
@@ -116,9 +120,10 @@ def _download_all(items):
     """Async download of the files.
 
        Example: [(url, quality, file_path)]
+
     """
     fut = {}
-    with futures.ThreadPoolExecutor(max_workers=8) as executor:
+    with futures.ThreadPoolExecutor(max_workers=WORKERS) as executor:
         fut = {executor.submit(dl, item): item for item in items}
         if CLI:
             for j in tqdm.tqdm(futures.as_completed(fut), total=len(items)):
@@ -178,9 +183,11 @@ def _console_select(l, print_args=None):
     return l
 
 
-def _fetch(path, *args, **kwargs):
+def _fetch(path, **kwargs):
     try:
         r = session.get(API_URL + path, **kwargs)
+        global APICALLS
+        APICALLS += 1
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -188,10 +195,11 @@ def _fetch(path, *args, **kwargs):
         return []
 
 
-def get_media_url(id=None):
-    if id:
+def get_media_url(media_id=None):
+    #print('get_media_url called %s media_id' % media_id)
+    if media_id:
         try:
-            response = _fetch('programs/%s' % id)
+            response = _fetch('programs/%s' % media_id)
             return response.get('mediaUrl', '')
         except Exception as e:
             print(e)
@@ -278,7 +286,7 @@ class NRK(object):
         else:
             return []
 
-    def programs(self, category_id):
+    def programs(self, category_id='all-programs'):
         items = _fetch('categories/%s/programs' % category_id)
         items = [item for item in items
                  if item.get('title', '').strip() != '' and
@@ -315,7 +323,6 @@ class NRK(object):
 
         to_download = []
         all_stuff = []
-        all_streams = []
 
         response = self.search(q, raw=True)
 
@@ -346,51 +353,38 @@ class NRK(object):
                 search_res = [search_res]
 
             for sr in search_res:
-                name = clean_name(sr['hit']['title'])  # ffppeg dont like : in the title
-
-                base_folder = os.path.join(SAVE_PATH, name)
-
-                try:
-                    os.mkdir(base_folder)
-                except:
-                    pass
-
                 if sr['type'] == 'serie':
                     # do some search object stuff..
                     id = sr['hit']['seriesId']
 
                     show = _fetch('series/%s' % id)
 
+                    # if we select a show, we should be able to choose all eps.
                     if 'programs' in show:
-                        all_stuff = [episode for episode in show['programs'] if episode['isAvailable']]
+                        all_stuff = [Episode(e) for e in show['programs'] if e['isAvailable']]
 
                     # Allow selection of episodes
-                    to_download = _console_select(all_stuff, ['title', 'episodeNumberOrDate'])
+                    all_eps = _console_select(all_stuff, ['full_title'])
+                    if not isinstance(all_eps, list):
+                        all_eps = [all_eps]
 
-                elif sr['type'] == 'program':
-                    to_download.append(sr['hit'])
+                    to_download += all_eps
+
+                elif sr['type'] in ['program', 'episode']:
+                    to_download.append(_build(sr['hit']))
 
                 if to_download:
+
                     for d in to_download:
-                        has_url = get_media_url(d['programId'])
-                        if has_url:
-                            if d.get('episodeNumberOrDate'):
-                                filename = '%s %s' % (d['title'], d['episodeNumberOrDate'])
-                            else:
-                                filename = '%s' % d['title']
+                        d.download()
+                        if SUBTITLE is True:
+                            d.subtitle()
 
-                            filename = clean_name(filename)
+            if len(self.downloads()):
+                self.downloads().start()
+            else:
+                print('Nothing to download')
 
-                            f_path = os.path.join(base_folder, filename)
-                            print(f_path)
-                            # set quality # TODO
-                            t = (has_url, 'high', f_path)
-                            all_streams.append(t)
-
-                if all_streams:
-                    _download_all(all_streams)
-                else:
-                    print('Nothing to download')
 
     def _browse(self):
         categories = _console_select(self.categories(), ['title'])
@@ -407,11 +401,13 @@ class NRK(object):
             if not isinstance(m_e, list):
                 m_e = [m_e]
             for z in m_e:
+                if SUBTITLE is True:
+                    z.subtitle()
                 print(c_out('%s\n' % z.name))
                 print(c_out('%s\n' % z.description))
                 a = raw_input('Do you wish to download this? y/n\n')
                 if a == 'y':
-                    Downloader().add(z.download())
+                    z.download()
 
         if len(self.downloads()):
             aa = raw_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
@@ -427,13 +423,35 @@ class Media(object):
         self.data = data
         self.name = data.get('name', '') or data.get('title', '')
         self.name = self.name.strip()
+        self.title = data.get('title')  # test
         self.type = data.get('type', None)
-        self.id = data.get('id', None)
+        self.id = data.get('id', None)  # check this
         self.available = data.get('isAvailable', False)
-        self.media_url = data.get('mediaUrl') or get_media_url(data.get('programId'))
+        #self.media_url = data.get('mediaUrl') or get_media_url(data.get('programId')) # test
+        self.file_name = self._filename()
+        self.file_path = os.path.join(SAVE_PATH, clean_name(self.name), self.file_name)
+
+        if 'episodeNumberOrDate' in data:
+            self.full_title = '%s %s' % (self.name, data.get('episodeNumberOrDate', ''))
+        else:
+            self.full_title = self.title
+
+    def _filename(self):
+        name = clean_name(self.name)
+        if 'episodeNumberOrDate' in self.data:
+            name += ' %s' % self.data.get('episodeNumberOrDate', '')
+            # remove stuff that ffmpeg could complain about
+            name = clean_name(name)
+        return name
 
     def as_dict(self):
+        """ raw response """
         return self.data
+
+    def subtitle(self):
+        """ download a subtitle """
+        print(self.type)
+        return Subtitle().get_subtitles(self.id, name=self.name, file_name=self.file_name)
 
     def download(self, path=None):
         if self.available is False or self.media_url is None:
@@ -444,27 +462,27 @@ class Media(object):
             path = SAVE_PATH
 
         name = clean_name(self.name)
+
         try:
+            # Make sure the show folder exists
             os.makedirs(os.path.join(SAVE_PATH, name))
         except:
+            print('tried to make %s' % c_out(name))
             pass
 
         q = 'high'  # fix me
         url = self.media_url
 
-        base_folder = os.path.join(SAVE_PATH, name)
-        if 'episodeNumberOrDate' in self.data:
-            name += ' %s' % self.data.get('episodeNumberOrDate', '')
-        # remove stuff that ffmpeg could complain about
-        name = clean_name(name)
-
-        fp = os.path.join(base_folder, name)
+        fp = self.file_path
 
         if url:
-            if CLI is False:  # add fix for -browse
-                return Downloader().add((url, q, fp))
-            else:
-                return (url, q, fp)
+            t = (url, q, fp)
+            Downloader().add((url, q, fp))
+            return t
+            #if CLI is False:  # add fix for -browse
+            #    return Downloader().add((url, q, fp))
+            #else:
+            #    return (url, q, fp)
         else:
             print("No download url")
 
@@ -474,17 +492,26 @@ class Episode(Media):
         super(self.__class__, self).__init__(data, *args, **kwargs)
         self.__dict__.update(data)
         self.ep_name = data.get('episodeNumberOrDate', '')
-        self.full_title = '%s %s' % (self.name, self.ep.name)
+        self.full_title = '%s %s' % (self.name, self.ep_name)
         self.category = Category(data.get('category') if 'category' in data else None)
+        self.id = data.get('programId')
+        self.media_url = data.get('mediaUrl') or get_media_url(data.get('programId'))
 
 
 class Season(Media):
-    def __init__(self, data, *args, **kwargs):
-        super(self.__class__, self).__init__(data, *args, **kwargs)
-        #self.id = data.get('id')
+    def __init__(self, season_number, id,
+                 description,
+                 series_id,
+                 *args,
+                 **kwargs):
+        self.id = id
+        self.season_number = season_number
+        self.description = description
+        self.series_id = series_id
+        #self.media_url = data.get('mediaUrl') or get_media_url(data.get('programId'))
 
-    #def episode(self):
-    #    pass
+    def episodes(self):
+        return [Episode(d) for d in _fetch('series/%s' % self.series_id)['programs'] if self.id == d.get('seasonId')]
 
 
 class Program(Media):
@@ -498,6 +525,7 @@ class Program(Media):
         self.description = data.get('description', '')
         self.available = data.get('isAvailable', False)
         self.category = Category(data.get('category') if 'category' in data else None)
+        self.media_url = data.get('mediaUrl') or get_media_url(data.get('programId'))
 
 
 class Series(Media):
@@ -511,16 +539,27 @@ class Series(Media):
         self.legal_age = data.get('legalAge') or data.get('aldersgrense')
         self.image_id = data.get('seriesImageId', data.get('imageId', None))
         self.available = data.get('isAvailable', False)
+        self.media_url = data.get('mediaUrl') or get_media_url(data.get('programId'))
         self.category = Category(data.get('category') if 'category' in data else None)
         # series object can act as a ep
-        if 'episodeNumberOrDate' in self.data:
+        if 'episodeNumberOrDate' in data:
             self.full_title = '%s %s' % (self.name, data.get('episodeNumberOrDate', ''))
         else:
             self.full_title = self.title
 
-    #def seasons(self):
-        #  No usefull info
-    #   return [Season(d) for d in self.data['seasons']]
+    def seasons(self):
+        all_seasons = []  # the lowest seasonnumer in a show in the first season
+        s_list = sorted([s['id'] for s in self.data['seasons']])
+        for i, id in enumerate(s_list):
+            s = Season(season_number=i,
+                       id=id,
+                       series_name=self.name,
+                       description=self.description,
+                       series_id=self.id)
+
+            all_seasons.append(s)
+
+        return all_seasons
 
     def episodes(self):
         return [Episode(d) for d in _fetch('series/%s' % self.id)['programs']]
@@ -547,12 +586,12 @@ class Downloader(object):
 
     @classmethod
     def add(cls, media):
-        print("downloder add got %s" % c_out(', '.join(media)))
         cls.files_to_download.append(media)
 
     @classmethod
     def start(cls):
         print('Downloads starting soon.. %s downloads to go' % len(cls.files_to_download))
+        print(cls.files_to_download)
         return _download_all(cls.files_to_download)
 
     @classmethod
@@ -570,19 +609,64 @@ class Category(Media):
 
 
 class Subtitle(object):
-    # untested, add translate?
+    # tested and works but slow.., add translate?
+    all_subs = []
+
+    #def __init__(self):
+    #    pass
+    #        # filename
+
     @classmethod
-    def get_subtitles(cls, video_id):
+    def get_subtitles(cls, video_id, name=None, file_name=None, translate=False):
         html = session.get("http://v8.psapi.nrk.no/programs/%s/subtitles/tt" % video_id).text
         if not html:
             return None
 
-        content = cls.ttml_to_srt(html)
-        filename = None
-        filename = os.path.join(SAVE_PATH, 'nor.srt')
-        with open(filename, 'w') as f:
+        # make sure the show folder exist
+        # incase someone just wants to download the sub
+        try:
+            os.makedirs(os.path.join(SAVE_PATH, name))
+        except:
+            pass
+
+        content = cls._ttml_to_srt(html)
+        file_name = '%s.srt' % file_name
+        file_name = os.path.join(SAVE_PATH, name, file_name)
+        print('subtitle filepath', file_name)
+        with open(file_name, 'w') as f:
             f.write(content)
-        return filename
+        return file_name
+
+    @classmethod
+    def translate(cls, text):
+        # check this
+        # from https://github.com/jashandeep-sohi/nrksub
+        response = session.post('https://translate.googleusercontent.com/translate_f',
+                                files={'file': ('trans.txt', '\r\r'.join(text), "text/plain")},
+                                data={'sl': 'no',
+                                      'tl': TRANSLATE,
+                                      'js': 'y',
+                                      'prev': '_t',
+                                      'hl': 'en',
+                                      'ie': 'UTF-8',
+                                      'edit-text': '',
+                                    },
+                                headers={"Referer": "https://translate.google.com/"}
+                                )
+        return response.text
+
+
+    @classmethod
+    def add(cls):
+        pass
+
+    @classmethod
+    def clear(cls):
+        pass
+
+    @classmethod
+    def start(cls):
+        pass
 
     @classmethod
     def _time_to_str(cls, time):
@@ -627,7 +711,7 @@ class Subtitle(object):
                 .split()
             text = ' '.join(text)
             text = re.sub('<br />\s*', '\n', text)
-            text = text.encode(ENCODING)
+            text = text.encode('utf8', 'ignore')
 
             output.write(str(i + 1))
             output.write('\n%s' % cls._time_to_str(start))
@@ -664,13 +748,27 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         required=False, help='Show ffmpeg output')
 
+    parser.add_argument('-w', '--workers', action='store_true', default=WORKERS,
+                        required=False, help='Number of thread pool workers')
+
+    parser.add_argument('-st', '--subtitle', action='store_true', default=SUBTITLE,
+                        required=False, help='Download subtitle for this media file?')
+
+    parser.add_argument('-t', '--translate', action='store_true', default=False,
+                        required=False, help='Translate')
+
     p = parser.parse_args()
 
     DRY_RUN = p.dry_run
     VERBOSE = p.verbose
+    SUBTITLE = p.subtitle
+    TRANSLATE = p.translate
 
     CLI = True
     ENCODING = p.encoding
+
+    if p.workers:
+        WORKERS = p.workers
 
     if p.save_path:
         SAVE_PATH = p.save_path
@@ -685,20 +783,33 @@ if __name__ == '__main__':
         c = NRK()._browse()
 
 
+
+#Examples
+
+#As a module:
 """
-Examples
-
-As a module:
-
 nrk = NRK()
-search = nrk.search("lille jack", strict=True)
+search = nrk.search("skam", strict=True)
+print(len(search))
 for s in search:
+    #print(len(s.episodes()))
     for e in s.episodes():
-        e.download()
+        print(e.id)
+        #e.subtitle()
+        #print(e.download())
+    #for s in s.seasons():
+    #    for e in s.episodes():
+    #        print(e.id)
+            #e.subtitle()
 
+    #for e in s.episodes():
+    #    e.download()
+print('APICALLS used %s' % APICALLS)
 all_downloads = nrk.downloads()
 
 # How many files are we gonna download
 print(len(all_downloads))
-all_downloads.start()
-"""
+#all_downloads.start()
+#"""
+
+#sub = Subtitle().get_subtitles('msub19120116')
