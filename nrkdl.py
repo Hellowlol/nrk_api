@@ -123,6 +123,10 @@ def _download_all(items):
 
     """
     fut = {}
+    # limit workers to max number of items
+    if len(items) > WORKERS:
+        WORKERS = len(items)
+
     with futures.ThreadPoolExecutor(max_workers=WORKERS) as executor:
         fut = {executor.submit(dl, item): item for item in items}
         if CLI:
@@ -247,17 +251,6 @@ class NRK(object):
     def __init__(self):
         pass
 
-    def _build(self, item):
-
-        hit_type = item.get('type', None)
-        if hit_type is not None:
-            item = item.get('hit')
-
-        if hit_type == 'serie' or item.get('seriesId', '').strip():
-            return Series(item)
-        else:
-            return Program(item)
-
     def search(self, q, raw=False, strict=False):
         """ Search nrk for stuff
 
@@ -292,7 +285,7 @@ class NRK(object):
                  if item.get('title', '').strip() != '' and
                  item['programId'] != 'notransmission']
 
-        return map(self._build, items)
+        return map(_build, items)
 
     def program(self, program_id):
         return [_build(_fetch('programs/%s' % program_id))]
@@ -453,9 +446,17 @@ class Media(object):
         print(self.type)
         return Subtitle().get_subtitles(self.id, name=self.name, file_name=self.file_name)
 
+    def media_url(self):
+        """ Allow mediaurl to be created manually """
+        return get_media_url(self.id)
+
     def download(self, path=None):
-        if self.available is False or self.media_url is None:
+        if self.available is False:
             print('Cant download %s' % self.name)
+            return
+
+        url = get_media_url(self.id)
+        if url is None:
             return
 
         if path is None:
@@ -467,24 +468,13 @@ class Media(object):
             # Make sure the show folder exists
             os.makedirs(os.path.join(SAVE_PATH, name))
         except:
-            print('tried to make %s' % c_out(name))
             pass
 
         q = 'high'  # fix me
-        url = self.media_url
-
         fp = self.file_path
-
-        if url:
-            t = (url, q, fp)
-            Downloader().add((url, q, fp))
-            return t
-            #if CLI is False:  # add fix for -browse
-            #    return Downloader().add((url, q, fp))
-            #else:
-            #    return (url, q, fp)
-        else:
-            print("No download url")
+        t = (url, q, fp)
+        Downloader().add((url, q, fp))
+        return t
 
 
 class Episode(Media):
@@ -495,7 +485,6 @@ class Episode(Media):
         self.full_title = '%s %s' % (self.name, self.ep_name)
         self.category = Category(data.get('category') if 'category' in data else None)
         self.id = data.get('programId')
-        self.media_url = data.get('mediaUrl') or get_media_url(data.get('programId'))
 
 
 class Season(Media):
@@ -508,7 +497,6 @@ class Season(Media):
         self.season_number = season_number
         self.description = description
         self.series_id = series_id
-        #self.media_url = data.get('mediaUrl') or get_media_url(data.get('programId'))
 
     def episodes(self):
         return [Episode(d) for d in _fetch('series/%s' % self.series_id)['programs'] if self.id == d.get('seasonId')]
@@ -525,7 +513,6 @@ class Program(Media):
         self.description = data.get('description', '')
         self.available = data.get('isAvailable', False)
         self.category = Category(data.get('category') if 'category' in data else None)
-        self.media_url = data.get('mediaUrl') or get_media_url(data.get('programId'))
 
 
 class Series(Media):
@@ -632,7 +619,7 @@ class Subtitle(object):
         content = cls._ttml_to_srt(html)
         file_name = '%s.srt' % file_name
         file_name = os.path.join(SAVE_PATH, name, file_name)
-        print('subtitle filepath', file_name)
+
         with open(file_name, 'w') as f:
             f.write(content)
         return file_name
@@ -658,15 +645,15 @@ class Subtitle(object):
 
     @classmethod
     def add(cls):
-        pass
+        pass  # TODO
 
     @classmethod
     def clear(cls):
-        pass
+        pass  # TODO
 
     @classmethod
     def start(cls):
-        pass
+        pass  # TODO
 
     @classmethod
     def _time_to_str(cls, time):
