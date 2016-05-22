@@ -123,8 +123,9 @@ def _download_all(items):
 
     """
     fut = {}
+    global WORKERS
     # limit workers to max number of items
-    if len(items) > WORKERS:
+    if len(items) < WORKERS:
         WORKERS = len(items)
 
     with futures.ThreadPoolExecutor(max_workers=WORKERS) as executor:
@@ -199,15 +200,14 @@ def _fetch(path, **kwargs):
         return []
 
 
-def get_media_url(media_id=None):
+def get_media_url(media_id):
     #print('get_media_url called %s media_id' % media_id)
-    if media_id:
-        try:
-            response = _fetch('programs/%s' % media_id)
-            return response.get('mediaUrl', '')
-        except Exception as e:
-            print(e)
-            return {}
+    try:
+        response = _fetch('programs/%s' % media_id)
+        return response.get('mediaUrl', '')
+    except Exception as e:
+        print(e)
+        return {}
 
 
 def _build(item):
@@ -218,6 +218,8 @@ def _build(item):
 
     if hit_type == 'serie' or item.get('seriesId', '').strip():
         return Series(item)
+    elif hit_type == 'episode':
+        return Episode(item)
     else:
         return Program(item)
 
@@ -420,7 +422,6 @@ class Media(object):
         self.type = data.get('type', None)
         self.id = data.get('id', None)  # check this
         self.available = data.get('isAvailable', False)
-        #self.media_url = data.get('mediaUrl') or get_media_url(data.get('programId')) # test
         self.file_name = self._filename()
         self.file_path = os.path.join(SAVE_PATH, clean_name(self.name), self.file_name)
 
@@ -443,19 +444,18 @@ class Media(object):
 
     def subtitle(self):
         """ download a subtitle """
-        print(self.type)
         return Subtitle().get_subtitles(self.id, name=self.name, file_name=self.file_name)
 
     def media_url(self):
         """ Allow mediaurl to be created manually """
-        return get_media_url(self.id)
+        return get_media_url(self.id if self.type != 'serie' else self.data.get('programId'))
 
     def download(self, path=None):
         if self.available is False:
             print('Cant download %s' % self.name)
             return
 
-        url = get_media_url(self.id)
+        url = self.media_url()
         if url is None:
             return
 
@@ -482,7 +482,7 @@ class Episode(Media):
         super(self.__class__, self).__init__(data, *args, **kwargs)
         self.__dict__.update(data)
         self.ep_name = data.get('episodeNumberOrDate', '')
-        self.full_title = '%s %s' % (self.name, self.ep_name)
+        #self.full_title = '%s %s' % (self.name, self.ep_name)
         self.category = Category(data.get('category') if 'category' in data else None)
         self.id = data.get('programId')
 
@@ -494,6 +494,7 @@ class Season(Media):
                  *args,
                  **kwargs):
         self.id = id
+        self.type = 'season'
         self.season_number = season_number
         self.description = description
         self.series_id = series_id
@@ -508,7 +509,7 @@ class Program(Media):
         self.type = 'program'
         self.__dict__.update(data)
         self.programid = data.get('programId')
-        self.full_title = self.name
+        #self.full_title = self.name
         self.id = data.get('programId')
         self.description = data.get('description', '')
         self.available = data.get('isAvailable', False)
@@ -526,13 +527,12 @@ class Series(Media):
         self.legal_age = data.get('legalAge') or data.get('aldersgrense')
         self.image_id = data.get('seriesImageId', data.get('imageId', None))
         self.available = data.get('isAvailable', False)
-        self.media_url = data.get('mediaUrl') or get_media_url(data.get('programId'))
         self.category = Category(data.get('category') if 'category' in data else None)
         # series object can act as a ep
-        if 'episodeNumberOrDate' in data:
-            self.full_title = '%s %s' % (self.name, data.get('episodeNumberOrDate', ''))
-        else:
-            self.full_title = self.title
+        #if 'episodeNumberOrDate' in data:
+        #    self.full_title = '%s %s' % (self.name, data.get('episodeNumberOrDate', ''))
+        #else:
+        #    self.full_title = self.title
 
     def seasons(self):
         all_seasons = []  # the lowest seasonnumer in a show in the first season
@@ -578,7 +578,7 @@ class Downloader(object):
     @classmethod
     def start(cls):
         print('Downloads starting soon.. %s downloads to go' % len(cls.files_to_download))
-        print(cls.files_to_download)
+        #print(cls.files_to_download)
         return _download_all(cls.files_to_download)
 
     @classmethod
@@ -735,7 +735,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         required=False, help='Show ffmpeg output')
 
-    parser.add_argument('-w', '--workers', action='store_true', default=WORKERS,
+    parser.add_argument('-w', '--workers', default=WORKERS,
                         required=False, help='Number of thread pool workers')
 
     parser.add_argument('-st', '--subtitle', action='store_true', default=SUBTITLE,
