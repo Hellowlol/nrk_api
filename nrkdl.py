@@ -123,6 +123,7 @@ def _download_all(items):
 
     """
     fut = {}
+    global WORKERS
     # limit workers to max number of items
     if len(items) > WORKERS:
         WORKERS = len(items)
