@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import locale
 from io import BytesIO
+from multiprocessing.dummy import Pool as ThreadPool
 import os
 import re
 import subprocess
@@ -12,7 +13,7 @@ import sys
 import time
 from functools import wraps
 
-import concurrent.futures as futures
+
 import requests
 import tqdm
 
@@ -70,7 +71,7 @@ def c_out(s):
 
 
 def clean_name(s):
-    s = re.sub(ur'[-/\\\?%\*|"<>]', '', s).replace(':', '_')
+    s = re.sub(r'[-/\\\?%\*|"<>]', '', s).replace(':', '_')
     return s
 
 
@@ -84,7 +85,7 @@ def timeme(func):
     return inner
 
 
-def dl(item):
+def dl(item, *args, **kwargs):
     """Downloads a media file
 
        [('url', 'high', 'filepath')]
@@ -122,23 +123,25 @@ def _download_all(items):
        Example: [(url, quality, file_path)]
 
     """
-    fut = {}
+
     global WORKERS
-    # limit workers to max number of items
-    if len(items) < WORKERS:
+    # Don't start more workers then 1:1
+    if WORKERS < len(items):
         WORKERS = len(items)
 
-    with futures.ThreadPoolExecutor(max_workers=WORKERS) as executor:
-        fut = {executor.submit(dl, item): item for item in items}
-        if CLI:
-            for j in tqdm.tqdm(futures.as_completed(fut), total=len(items)):
-                try:
-                    res = j.result()
-                except Exception as e:
-                    print(e)
-        else:
-            for j in futures.as_completed(fut):
-                res = j.result()
+    pool = ThreadPool(WORKERS)
+    chunks = 1  # TODO
+    # 1 ffmpeg is normally 10x- 20x * 2500kbits ish
+    # so depending on how many items you download and
+    # your bandwidth you might need to tweak chunk
+
+    results = pool.imap_unordered(dl, items, chunks)
+    try:
+        for j in tqdm.tqdm(results, desc='videos', total=len(items)):
+            pass
+    finally:
+        pool.close()
+        pool.join()
 
 
 def _console_select(l, print_args=None):
@@ -156,7 +159,7 @@ def _console_select(l, print_args=None):
         if not isinstance(stuff, (list, dict, tuple)):  # classes, functions
             try:
                 x = [c_out(getattr(stuff, x)) for x in print_args]
-                x.insert(0, str(i))
+                x.insert(0, '{:>3}:'.format(i))  # add new format to ljust and :
                 print(' '.join(x))
 
             except Exception as e:
@@ -164,13 +167,13 @@ def _console_select(l, print_args=None):
 
         elif isinstance(stuff, tuple):  # unbound, used to build a menu
             x = [c_out(stuff[x]) for x in print_args if stuff[x]]
-            x.insert(0, str(i))
+            x.insert(0, '{:>3}:'.format(i))
             print(' '.join(x))
 
         else:
             # Normally a dict
             x = [c_out(stuff.get(k)) for k in print_args if stuff.get(k)]
-            x.insert(0, str(i))
+            x.insert(0, '{:>3}:'.format(i))
             print(' '.join(x))
 
     # select the grab...
@@ -184,6 +187,9 @@ def _console_select(l, print_args=None):
 
         if isinstance(l, dict):
             l = [l]
+
+    #if not isinstance(l, list):
+    #    l = [l]
 
     return l
 
@@ -228,7 +234,7 @@ def parse_url(s):
     urls = [u.strip() for u in s.split(' ')]
     to_dl = []
     # grouped regex for the meta tag
-    regex = re.compile(ur'<meta\sname="(.*?)"\scontent="(.*?)"\s/>')
+    regex = re.compile(r'<meta\sname="(.*?)"\scontent="(.*?)"\s/>')
 
     for s in urls:
         r = requests.get(s)
@@ -327,7 +333,7 @@ class NRK(object):
         else:
             # use reverse since 0 is the closest match and i dont want to scoll
             for i, hit in reversed(list(enumerate(response['hits']))):
-                print('%s: %s' % (i, c_out(hit['hit']['title'])))
+                print('{:>3}: {}'.format(i, c_out(hit['hit']['title'])))
 
             # If there are more then one result, the user should pick a show
             if len(response['hits']) > 1:
@@ -379,7 +385,6 @@ class NRK(object):
                 self.downloads().start()
             else:
                 print('Nothing to download')
-
 
     def _browse(self):
         categories = _console_select(self.categories(), ['title'])
@@ -452,7 +457,7 @@ class Media(object):
 
     def download(self, path=None):
         if self.available is False:
-            print('Cant download %s' % self.name)
+            #print('Cant download %s' % c_ount(self.name))
             return
 
         url = self.media_url()
@@ -482,7 +487,6 @@ class Episode(Media):
         super(self.__class__, self).__init__(data, *args, **kwargs)
         self.__dict__.update(data)
         self.ep_name = data.get('episodeNumberOrDate', '')
-        #self.full_title = '%s %s' % (self.name, self.ep_name)
         self.category = Category(data.get('category') if 'category' in data else None)
         self.id = data.get('programId')
 
@@ -509,7 +513,6 @@ class Program(Media):
         self.type = 'program'
         self.__dict__.update(data)
         self.programid = data.get('programId')
-        #self.full_title = self.name
         self.id = data.get('programId')
         self.description = data.get('description', '')
         self.available = data.get('isAvailable', False)
@@ -755,7 +758,7 @@ if __name__ == '__main__':
     ENCODING = p.encoding
 
     if p.workers:
-        WORKERS = p.workers
+        WORKERS = int(p.workers)
 
     if p.save_path:
         SAVE_PATH = p.save_path
