@@ -24,14 +24,14 @@ Pick a show or use slice notation
 
 ## URL
 ```
-> python nrkdl.py -u "http://tv.nrksuper.no/serie/bernt-og-erling-paa-nye-eventyr, http://tv.nrksuper.no/serie/bertine-paa-besoek"
+> python nrkdl.py -u "http://tv.nrksuper.no/serie/bernt-og-erling-paa-nye-eventyr http://tv.nrksuper.no/serie/bertine-paa-besoek"
 100%|####################################################################################| 2/2 [00:21<00:00, 13.63s/it]
 ```
 
 ## Module
 ```
 nrk = NRK()
-s = nrk.search("lille jack", strict=True)
+s = nrk.search("lille jack", strict=True)[0]
 for e in s.episodes():
     e.download()
 
@@ -41,4 +41,5 @@ all_downloads = nrk.downloads()
 print(len(nrk.downloads()))
 # Start downloading
 all_downloads.start()
+
 ```

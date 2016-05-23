@@ -6,6 +6,7 @@ from __future__ import print_function
 import locale
 from io import BytesIO
 from multiprocessing.dummy import Pool as ThreadPool
+import logging
 import os
 import re
 import subprocess
@@ -50,6 +51,7 @@ WORKERS = 4
 SUBTITLE = False
 
 APICALLS = 0
+logging.basicConfig(level=logging.DEBUG)
 
 try:
     locale.setlocale(locale.LC_ALL, "")
@@ -58,9 +60,14 @@ except (locale.Error, IOError):
     pass
 
 try:
-    os.mkdir(SAVE_PATH)
-except:
-    pass
+    os.makedirs(SAVE_PATH)
+except OSError as e:
+    if not os.path.isdir(SAVE_PATH):
+        raise
+
+# Disable log spam
+logging.getLogger('requests').setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 def c_out(s):
@@ -80,7 +87,7 @@ def timeme(func):
     def inner(*args, **kwargs):
         start = time.time()
         res = func(*args)
-        print('\n\n%s took %s' % (func.__name__, time.time() - start))
+        logging.info('\n\n%s took %s' % (func.__name__, time.time() - start))
         return res
     return inner
 
@@ -88,7 +95,7 @@ def timeme(func):
 def dl(item, *args, **kwargs):
     """Downloads a media file
 
-       [('url', 'high', 'filepath')]
+       ('url', 'high', 'filepath')
 
     """
 
@@ -145,7 +152,7 @@ def _download_all(items):
 
 
 def _console_select(l, print_args=None):
-    """ Helper function to allow grab dicts from list with ints and slice. """
+    """ Helper function to allow grab dicts/objects from list with ints and slice. """
     print('\n')
 
     if isinstance(l, dict):
@@ -159,7 +166,7 @@ def _console_select(l, print_args=None):
         if not isinstance(stuff, (list, dict, tuple)):  # classes, functions
             try:
                 x = [c_out(getattr(stuff, x)) for x in print_args]
-                x.insert(0, '{:>3}:'.format(i))  # add new format to ljust and :
+                x.insert(0, '{:>3}:'.format(i))
                 print(' '.join(x))
 
             except Exception as e:
@@ -177,7 +184,7 @@ def _console_select(l, print_args=None):
             print(' '.join(x))
 
     # select the grab...
-    grab = raw_input('\nNumber or use slice notation\n')
+    grab = raw_input('\nSelect a number or use slice notation\n')
     # Check if was slice..
     if any(s in grab for s in (':', '::', '-')):
         grab = slice(*map(lambda x: int(x.strip()) if x.strip() else None, grab.split(':')))
@@ -185,11 +192,8 @@ def _console_select(l, print_args=None):
     else:
         l = l[int(grab)]
 
-        if isinstance(l, dict):
-            l = [l]
-
-    #if not isinstance(l, list):
-    #    l = [l]
+    if not isinstance(l, list):
+        l = [l]
 
     return l
 
@@ -202,7 +206,7 @@ def _fetch(path, **kwargs):
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        print('Error in fetch %s' % e)
+        logging.exception('Failed to %s' % e)
         return []
 
 
@@ -212,7 +216,7 @@ def get_media_url(media_id):
         response = _fetch('programs/%s' % media_id)
         return response.get('mediaUrl', '')
     except Exception as e:
-        print(e)
+        logging.exception('Failed to %s' % e)
         return {}
 
 
@@ -245,9 +249,12 @@ def parse_url(s):
         meta = {k: v for k, v in meta_tags if len(v)}
         if meta.get('programid'):
             media = NRK().program(meta.get('programid'))[0]
+            if SUBTITLE is True:
+                media.subtitle()
+
             to_dl.append(media.download())
         else:
-            print('The url has no programid')
+            logging.debug('The url has no programid')
 
     if to_dl:
         _download_all(to_dl)
@@ -318,6 +325,16 @@ class NRK(object):
     def downloads(self):
         return Downloader()
 
+    def _from_file(self, f):
+        try:
+            urls = []
+            with open(f, 'r') as f:
+                urls = [ff.strip('\n') for ff in f.readlines()]
+            parse_url(' '.join(urls))
+
+        except Exception as e:
+            logging.exception('%s' % e)
+
     def _console(self, q):
         """ Used by CLI """
         # rewrite this or keep it for speed?
@@ -328,7 +345,7 @@ class NRK(object):
         response = self.search(q, raw=True)
 
         if response['hits'] is None:
-            print('Didnt find shit')
+            logging.info('Didnt find anything')
             return
         else:
             # use reverse since 0 is the closest match and i dont want to scoll
@@ -388,26 +405,23 @@ class NRK(object):
 
     def _browse(self):
         categories = _console_select(self.categories(), ['title'])
-        what_programs = [('Popular ' + categories.name, self.popular_programs),
-                         ('Recommended ' + categories.name, self.recommended_programs),
-                         ('Recent ' + categories.name, self.recent_programs)
+        what_programs = [('Popular ' + categories[0].name, self.popular_programs),
+                         ('Recommended ' + categories[0].name, self.recommended_programs),
+                         ('Recent ' + categories[0].name, self.recent_programs)
                          ]
 
         x = _console_select(what_programs, [0])  # should be list?
-        media_element = [_console_select(x[1](categories.id), ['full_title'])]
+        media_element = _console_select(x[0][1](categories[0].id), ['full_title'])
         # type_list should be a media object
         print('Found %s media elements' % len(media_element))
         for m_e in media_element:
-            if not isinstance(m_e, list):
-                m_e = [m_e]
-            for z in m_e:
-                if SUBTITLE is True:
-                    z.subtitle()
-                print(c_out('%s\n' % z.name))
-                print(c_out('%s\n' % z.description))
-                a = raw_input('Do you wish to download this? y/n\n')
-                if a == 'y':
-                    z.download()
+            if SUBTITLE is True:
+                m_e.subtitle()
+            print(c_out('%s\n' % m_e.name))
+            print(c_out('%s\n' % m_e.description))
+            a = raw_input('Do you wish to download this? y/n\n')
+            if a == 'y':
+                m_e.download()
 
         if len(self.downloads()):
             aa = raw_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
@@ -531,11 +545,6 @@ class Series(Media):
         self.image_id = data.get('seriesImageId', data.get('imageId', None))
         self.available = data.get('isAvailable', False)
         self.category = Category(data.get('category') if 'category' in data else None)
-        # series object can act as a ep
-        #if 'episodeNumberOrDate' in data:
-        #    self.full_title = '%s %s' % (self.name, data.get('episodeNumberOrDate', ''))
-        #else:
-        #    self.full_title = self.title
 
     def seasons(self):
         all_seasons = []  # the lowest seasonnumer in a show in the first season
@@ -616,8 +625,9 @@ class Subtitle(object):
         # incase someone just wants to download the sub
         try:
             os.makedirs(os.path.join(SAVE_PATH, name))
-        except:
-            pass
+        except OSError as e:
+            if not os.path.isdir(os.path.join(SAVE_PATH, name)):
+                raise
 
         content = cls._ttml_to_srt(html)
         file_name = '%s.srt' % file_name
@@ -631,6 +641,7 @@ class Subtitle(object):
     def translate(cls, text):
         # check this
         # from https://github.com/jashandeep-sohi/nrksub
+        '''
         response = session.post('https://translate.googleusercontent.com/translate_f',
                                 files={'file': ('trans.txt', '\r\r'.join(text), "text/plain")},
                                 data={'sl': 'no',
@@ -644,6 +655,7 @@ class Subtitle(object):
                                 headers={"Referer": "https://translate.google.com/"}
                                 )
         return response.text
+        '''
 
 
     @classmethod
@@ -739,20 +751,24 @@ if __name__ == '__main__':
                         required=False, help='Show ffmpeg output')
 
     parser.add_argument('-w', '--workers', default=WORKERS,
-                        required=False, help='Number of thread pool workers')
+                        required=False, help='Number of thread pool workers, if your downloading \
+                                              many items you might have edit the chuck')
 
     parser.add_argument('-st', '--subtitle', action='store_true', default=SUBTITLE,
                         required=False, help='Download subtitle for this media file?')
 
-    parser.add_argument('-t', '--translate', action='store_true', default=False,
-                        required=False, help='Translate')
+    parser.add_argument('-if', '--input_file', default=False,
+                        required=False, help='Download to this folder')
+
+    #parser.add_argument('-t', '--translate', action='store_true', default=False,
+    #                    required=False, help='Translate')
 
     p = parser.parse_args()
 
     DRY_RUN = p.dry_run
     VERBOSE = p.verbose
     SUBTITLE = p.subtitle
-    TRANSLATE = p.translate
+    #TRANSLATE = p.translate # TODO
 
     CLI = True
     ENCODING = p.encoding
@@ -763,6 +779,9 @@ if __name__ == '__main__':
     if p.save_path:
         SAVE_PATH = p.save_path
 
+    if p.input_file:
+        NRK()._from_file(p.input_file)
+
     if p.url:
         parse_url(p.url)
 
@@ -771,35 +790,3 @@ if __name__ == '__main__':
 
     elif p.browse:
         c = NRK()._browse()
-
-
-
-#Examples
-
-#As a module:
-"""
-nrk = NRK()
-search = nrk.search("skam", strict=True)
-print(len(search))
-for s in search:
-    #print(len(s.episodes()))
-    for e in s.episodes():
-        print(e.id)
-        #e.subtitle()
-        #print(e.download())
-    #for s in s.seasons():
-    #    for e in s.episodes():
-    #        print(e.id)
-            #e.subtitle()
-
-    #for e in s.episodes():
-    #    e.download()
-print('APICALLS used %s' % APICALLS)
-all_downloads = nrk.downloads()
-
-# How many files are we gonna download
-print(len(all_downloads))
-#all_downloads.start()
-#"""
-
-#sub = Subtitle().get_subtitles('msub19120116')
