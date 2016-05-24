@@ -1,25 +1,28 @@
 # nrkdl
-Simple commandline tool to download all episodes of a show from nrk/nrk super with py2/py3
+Simple commandline tool to download all episodes of a show from nrk/nrk super with py2/3 (tested with 2.7 and 3.5)
 
 ## Search
 ```
-> python nrkdl.py -s "Lille jack"
-4: Når lysene tennes...
-3: Visittid
-2: Frieren
-1: På kino i kveld
-0: Lille Jack
+> python nrkdl.py -s "lille jack"
+  4: Når lysene tennes...
+  3: Visittid
+  2: Frieren
+  1: På kino i kveld
+  0: Lille Jack
 
-Pick a show or use slice notation
+Select a number or use slice notation
 0
 
+  2: Lille Jack 29:52
+  1: Lille Jack 31:52
+  0: Lille Jack 32:52
 
-1 Lille Jack 27:52
-0 Lille Jack 28:52
-
-Pick a show or use slice notation
+Select a number or use slice notation
 ::
-100%|####################################################################################| 2/2 [01:03<00:00, 43.64s/it]
+
+Downloads starting soon.. 3 downloads to go
+100%|############################################################################| 3/3 [03:57<00:00, 79.09s/it]
+
 ```
 
 ## URL
@@ -43,3 +46,4 @@ print(len(nrk.downloads()))
 all_downloads.start()
 
 ```
+See example and source file for more examples

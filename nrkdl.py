@@ -144,7 +144,7 @@ def _download_all(items):
 
     results = pool.imap_unordered(dl, items, chunks)
     try:
-        for j in tqdm.tqdm(results, desc='videos', total=len(items)):
+        for j in tqdm.tqdm(results, total=len(items)):
             pass
     finally:
         pool.close()
@@ -355,7 +355,7 @@ class NRK(object):
             # If there are more then one result, the user should pick a show
             if len(response['hits']) > 1:
 
-                grab = raw_input('\nPick a show or use slice notation\n')
+                grab = raw_input('\nSelect a number or use slice notation\n')
                 # Check if was slice..
                 if any(s in grab for s in (':', '::', '-')):
                     grab = slice(*map(lambda x: int(x.strip()) if x.strip() else None, grab.split(':')))
@@ -391,12 +391,11 @@ class NRK(object):
                 elif sr['type'] in ['program', 'episode']:
                     to_download.append(_build(sr['hit']))
 
-                if to_download:
-
-                    for d in to_download:
-                        d.download()
-                        if SUBTITLE is True:
-                            d.subtitle()
+            if to_download:
+                for d in to_download:
+                    d.download()
+                    if SUBTITLE is True:
+                        d.subtitle()
 
             if len(self.downloads()):
                 self.downloads().start()
@@ -414,14 +413,21 @@ class NRK(object):
         media_element = _console_select(x[0][1](categories[0].id), ['full_title'])
         # type_list should be a media object
         print('Found %s media elements' % len(media_element))
+        dl_all = False
         for m_e in media_element:
             if SUBTITLE is True:
                 m_e.subtitle()
+            if dl_all is True:
+                m_e.download()
+                continue
             print(c_out('%s\n' % m_e.name))
             print(c_out('%s\n' % m_e.description))
-            a = raw_input('Do you wish to download this? y/n\n')
+            a = raw_input('Do you wish to download this? y/n/all\n')
             if a == 'y':
                 m_e.download()
+            elif a == 'all':
+                m_e.download()
+                dl_all = True
 
         if len(self.downloads()):
             aa = raw_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
