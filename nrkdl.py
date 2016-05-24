@@ -242,7 +242,7 @@ def parse_url(s):
 
     for s in urls:
         r = requests.get(s)
-        html = r.content
+        html = r.text
 
         meta_tags = regex.findall(html)
         # only add it to the dict if the value exist
