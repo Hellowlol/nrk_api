@@ -44,3 +44,5 @@ Temporary Items
 
 # Ignore default downloads folder
 downloads/
+
+*.py[co]
