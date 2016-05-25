@@ -44,7 +44,7 @@ session.headers['app-version-android'] = '999'
 
 CLI = False
 ENCODING = None
-SAVE_PATH = os.path.join(os.getcwd(), 'downloads')
+SAVE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads')
 DRY_RUN = False
 VERBOSE = False
 WORKERS = 4
@@ -314,7 +314,7 @@ class NRK(object):
     def categories(self):
         return [Category(item) for item in _fetch('categories/')]
 
-    def popular_programs(self, category_id='all-programs'):  # fixme
+    def popular_programs(self, category_id='all-programs'):
         return [_build(item) for item in
                 _fetch('categories/%s/popularprograms' % category_id)]
 
@@ -409,7 +409,7 @@ class NRK(object):
                          ('Recent ' + categories[0].name, self.recent_programs)
                          ]
 
-        x = _console_select(what_programs, [0])  # should be list?
+        x = _console_select(what_programs, [0])
         media_element = _console_select(x[0][1](categories[0].id), ['full_title'])
         # type_list should be a media object
         print('Found %s media elements' % len(media_element))
