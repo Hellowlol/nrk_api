@@ -33,8 +33,7 @@ Downloads starting soon.. 3 downloads to go
 
 ## Module
 ```
-nrk = NRK()
-s = nrk.search("lille jack", strict=True)[0]
+s = NRK.search("lille jack", strict=True)[0]
 for e in s.episodes():
     e.download()
 
@@ -47,3 +46,7 @@ all_downloads.start()
 
 ```
 See example and source file for more examples
+
+## Other tools
+If you prefer a gui you should give https://bitbucket.org/snippsat/wx_nrk a go.
+CLI: https://github.com/kvolden/nrk_download

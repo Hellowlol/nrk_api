@@ -57,7 +57,7 @@ try:
     locale.setlocale(locale.LC_ALL, "")
     ENCODING = locale.getpreferredencoding()
 except (locale.Error, IOError):
-    pass
+    ENCODING = 'utf-8'
 
 try:
     os.makedirs(SAVE_PATH)
@@ -211,6 +211,10 @@ def _fetch(path, **kwargs):
 
 
 def get_media_url(media_id):
+    """ returns the media urls, if we want more details we
+        could use this response to populate the class as it
+        yields more info
+    """
     #print('get_media_url called %s media_id' % media_id)
     try:
         response = _fetch('programs/%s' % media_id)
@@ -221,8 +225,8 @@ def get_media_url(media_id):
 
 
 def _build(item):
-
-    hit_type = item.get('type', None)
+    """ Helper function that returns the correct class """
+    hit_type = item.get('type')
     if hit_type is not None:
         item = item.get('hit')
 
@@ -235,6 +239,8 @@ def _build(item):
 
 
 def parse_url(s):
+    """ parse a url from super and/or nrk and download the video """
+
     urls = [u.strip() for u in s.split(' ')]
     to_dl = []
     # grouped regex for the meta tag
@@ -263,10 +269,8 @@ def parse_url(s):
 class NRK(object):
     """ Useless class """
 
-    def __init__(self):
-        pass
-
-    def search(self, q, raw=False, strict=False):
+    @staticmethod
+    def search(q, raw=False, strict=False):
         """ Search nrk for stuff
 
             Params:
@@ -294,7 +298,8 @@ class NRK(object):
         else:
             return []
 
-    def programs(self, category_id='all-programs'):
+    @staticmethod
+    def programs(category_id='all-programs'):
         items = _fetch('categories/%s/programs' % category_id)
         items = [item for item in items
                  if item.get('title', '').strip() != '' and
@@ -302,30 +307,38 @@ class NRK(object):
 
         return map(_build, items)
 
-    def program(self, program_id):
+    @staticmethod
+    def program(program_id):
         return [_build(_fetch('programs/%s' % program_id))]
 
-    def recent_programs(self, category_id='all-programs'):
+    @staticmethod
+    def recent_programs(category_id='all-programs'):
         return [_build(data) for data in _fetch('categories/%s/recentlysentprograms' % category_id)]
 
-    def channels(self):
+    @staticmethod
+    def channels():
         return [Channel(data) for data in _fetch('channels/')]
 
-    def categories(self):
+    @staticmethod
+    def categories():
         return [Category(item) for item in _fetch('categories/')]
 
-    def popular_programs(self, category_id='all-programs'):  # fixme
+    @staticmethod
+    def popular_programs(category_id='all-programs'):  # fixme
         return [_build(item) for item in
                 _fetch('categories/%s/popularprograms' % category_id)]
 
-    def recommended_programs(self, category_id='all-programs'):
+    @staticmethod
+    def recommended_programs(category_id='all-programs'):
         return [_build(item) for item in
                 _fetch('categories/%s/recommendedprograms' % category_id)]
 
-    def downloads(self):
+    @staticmethod
+    def downloads():
         return Downloader()
 
-    def _from_file(self, f):
+    @staticmethod
+    def _from_file(f):
         try:
             urls = []
             with open(f, 'r') as f:
@@ -335,14 +348,13 @@ class NRK(object):
         except Exception as e:
             logging.exception('%s' % e)
 
-    def _console(self, q):
+    @staticmethod
+    def _console(q):
         """ Used by CLI """
-        # rewrite this or keep it for speed?
-
         to_download = []
         all_stuff = []
 
-        response = self.search(q, raw=True)
+        response = NRK.search(q, raw=True)
 
         if response['hits'] is None:
             logging.info('Didnt find anything')
@@ -397,16 +409,19 @@ class NRK(object):
                     if SUBTITLE is True:
                         d.subtitle()
 
-            if len(self.downloads()):
-                self.downloads().start()
+            if NRK.downloads():
+                NRK.downloads().start()
             else:
                 print('Nothing to download')
 
-    def _browse(self):
-        categories = _console_select(self.categories(), ['title'])
-        what_programs = [('Popular ' + categories[0].name, self.popular_programs),
-                         ('Recommended ' + categories[0].name, self.recommended_programs),
-                         ('Recent ' + categories[0].name, self.recent_programs)
+    @staticmethod
+    def _browse():
+        """ Browse the shows from nrk/super """
+
+        categories = _console_select(NRK.categories(), ['title'])
+        what_programs = [('Popular ' + categories[0].name, NRK.popular_programs),
+                         ('Recommended ' + categories[0].name, NRK.recommended_programs),
+                         ('Recent ' + categories[0].name, NRK.recent_programs)
                          ]
 
         x = _console_select(what_programs, [0])  # should be list?
@@ -429,9 +444,9 @@ class NRK(object):
                 m_e.download()
                 dl_all = True
 
-        if len(self.downloads()):
-            aa = raw_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
-            d = self.downloads()
+        if NRK.downloads():
+            aa = raw_input('Download que is %s do you wish to download everything now? y/n\n' % len(NRK.downloads()))
+            d = NRK.downloads()
             if aa == 'y':
                 d.start()
             else:
@@ -458,7 +473,7 @@ class Media(object):
     def _filename(self):
         name = clean_name(self.name)
         if 'episodeNumberOrDate' in self.data:
-            name += ' %s' % self.data.get('episodeNumberOrDate', '')
+            name += ' %s' % self.data.get('episodeNumberOrDate', '').strip()
             # remove stuff that ffmpeg could complain about
             name = clean_name(name)
         return name
@@ -492,8 +507,9 @@ class Media(object):
         try:
             # Make sure the show folder exists
             os.makedirs(os.path.join(SAVE_PATH, name))
-        except:
-            pass
+        except OSError as e:
+            if not os.path.isdir(os.path.join(SAVE_PATH, name)):
+                raise
 
         q = 'high'  # fix me
         fp = self.file_path
@@ -580,6 +596,7 @@ class Channel(Media):
         self.priority = data.get('priority')
 
     def epg(self):
+        # Fix me
         return [_build(e) for e in self.data['epg']['liveBufferEpg']]
 
 
@@ -596,7 +613,6 @@ class Downloader(object):
     @classmethod
     def start(cls):
         print('Downloads starting soon.. %s downloads to go' % len(cls.files_to_download))
-        #print(cls.files_to_download)
         return _download_all(cls.files_to_download)
 
     @classmethod
@@ -662,7 +678,6 @@ class Subtitle(object):
                                 )
         return response.text
         '''
-
 
     @classmethod
     def add(cls):
@@ -766,7 +781,7 @@ if __name__ == '__main__':
     parser.add_argument('-if', '--input_file', default=False,
                         required=False, help='Download to this folder')
 
-    #parser.add_argument('-t', '--translate', action='store_true', default=False,
+    # parser.add_argument('-t', '--translate', action='store_true', default=False,
     #                    required=False, help='Translate')
 
     p = parser.parse_args()
@@ -774,7 +789,7 @@ if __name__ == '__main__':
     DRY_RUN = p.dry_run
     VERBOSE = p.verbose
     SUBTITLE = p.subtitle
-    #TRANSLATE = p.translate # TODO
+    # TRANSLATE = p.translate # TODO
 
     CLI = True
     ENCODING = p.encoding
@@ -786,13 +801,14 @@ if __name__ == '__main__':
         SAVE_PATH = p.save_path
 
     if p.input_file:
-        NRK()._from_file(p.input_file)
+        NRK._from_file(p.input_file)
 
     if p.url:
         parse_url(p.url)
 
     elif p.search:
-        c = NRK()._console(p.search)
+        print(p.search)
+        c = NRK._console(p.search)
 
     elif p.browse:
-        c = NRK()._browse()
+        c = NRK._browse()
