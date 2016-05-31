@@ -226,6 +226,7 @@ def get_media_url(media_id):
 
 def _build(item):
     """ Helper function that returns the correct class """
+
     hit_type = item.get('type')
     if hit_type is not None:
         item = item.get('hit')
@@ -309,7 +310,18 @@ class NRK(object):
 
     @staticmethod
     def program(program_id):
-        return [_build(_fetch('programs/%s' % program_id))]
+        """ Get details about a program/series """
+        item = _fetch('programs/%s' % program_id)
+        if item.get('title').strip() != '':
+            return [Episode(item)]
+        else:
+            return [Program(item)]
+
+        #return [_build(_fetch('programs/%s' % program_id))]
+
+    @staticmethod
+    def series(series_id):
+        return [_build(_fetch('series/%s' % series_id))]
 
     @staticmethod
     def recent_programs(category_id='all-programs'):
@@ -318,6 +330,50 @@ class NRK(object):
     @staticmethod
     def channels():
         return [Channel(data) for data in _fetch('channels/')]
+
+    @staticmethod
+    def site_rip():
+        """ Dont run this.. """
+        added_ids = []
+        programs = []
+        series = []
+        total = 0
+        for category in _fetch('categories'):
+            if category.get('categoryId') != 'all-programs': # useless shit...
+                cat = _fetch('categories/%s/programs' % category.get('categoryId'))
+                for i in cat:
+                    if i.get('seriesId', '').strip() != '':
+                        if i.get('seriesId', '') not in added_ids:
+                            added_ids.append(i.get('seriesId', ''))
+                            try:
+                                s = NRK.series(i.get('seriesId', ''))
+                                series += s
+                            except:
+                                # CRAPS out if json is shit. IDK
+                                pass
+                    else:
+                        if i.get('programId') not in added_ids:
+                            added_ids.append(i.get('programId'))
+
+                            # Note series with the category tegnspraak will
+                            # still count as program as they have no seriesId
+                            try:
+                                p = NRK.program(i.get('programId'))
+                                programs += p
+                            except:
+                                # CRAPS out if json is shit. IDK
+                                pass
+
+        print('Found:\n')
+        print('%s series' % len(series))
+        for s in series:
+            total += len(s.episodes())
+
+        print('%s episodes' % total)
+        print('%s programs' % len(programs))
+        print('%s media files in total' % (total + len(programs)))
+        return series + programs
+
 
     @staticmethod
     def categories():
@@ -506,13 +562,13 @@ class Media(object):
 
         try:
             # Make sure the show folder exists
-            os.makedirs(os.path.join(SAVE_PATH, name))
+            os.makedirs(os.path.join(path, name))
         except OSError as e:
-            if not os.path.isdir(os.path.join(SAVE_PATH, name)):
+            if not os.path.isdir(os.path.join(path, name)):
                 raise
 
+        fp = os.path.join(path, clean_name(self.name), self.file_name)
         q = 'high'  # fix me
-        fp = self.file_path
         t = (url, q, fp)
         Downloader().add((url, q, fp))
         return t

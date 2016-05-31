@@ -23,27 +23,20 @@ def example_site_rip():
     """ Please, dont do this.. """
     nrk = NRK
 
-    all_programs = nrk.programs()
-    print('We found %s' % len(all_programs))
+    all_programs = nrk.site_rip()
 
-    would_have_downloaded = 0
-    for program in all_programs:
-        print('So far %s' % would_have_downloaded)
-        if program.type == 'program':
-            would_have_downloaded += 1
-            # program.download()
-        elif program.type == 'serie':
-            would_have_downloaded += len(program.episodes())
-            # for e in program.episodes():
-            #    e.download() #
+    for media in all_programs:
+        if media.type == 'serie':
+            for serie in media.episodes():
+                #serie.download()
+                pass
+        else:
+            #media.download()
+            pass
 
-    # Start downloading stuff
-    nrk.downloads().start()
+    #nrk.downloads().start()
 
-    print('If we where to download everything we would download %s' % would_have_downloaded)
-    # 15882.
-
-# example_site_rip()
+example_site_rip()
 
 
 def example_parse_url():
