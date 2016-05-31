@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+
 from nrkdl import NRK
 
 
 def example_search():
-    nrk = NRK()
+    nrk = NRK
     search_results = nrk.search('Brannman Sam')
     for search in search_results:
         for season in search.seasons():
@@ -20,7 +21,7 @@ def example_search():
 
 def example_site_rip():
     """ Please, dont do this.. """
-    nrk = NRK()
+    nrk = NRK
 
     all_programs = nrk.programs()
     print('We found %s' % len(all_programs))
@@ -47,7 +48,7 @@ def example_site_rip():
 
 def example_parse_url():
     # This starts downloading right away
-    nrk = NRK()
-    nrk.parse_urls('https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10 http://tv.nrksuper.no/serie/lili/MSUI28008314/sesong-1/episode-3')
+
+    NRK.parse_urls('https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10 http://tv.nrksuper.no/serie/lili/MSUI28008314/sesong-1/episode-3')
 
 # example_parse_url()
