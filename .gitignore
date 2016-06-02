@@ -46,3 +46,7 @@ Temporary Items
 downloads/
 
 *.py[co]
+
+#py.test
+
+.cache/
