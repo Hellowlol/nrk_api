@@ -206,7 +206,7 @@ def _fetch(path, **kwargs):
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        logging.exception('Failed to %s' % e)
+        logging.exception('Failed to %s %s' % (path, e))
         return []
 
 
@@ -317,11 +317,9 @@ class NRK(object):
         else:
             return [Program(item)]
 
-        #return [_build(_fetch('programs/%s' % program_id))]
-
     @staticmethod
     def series(series_id):
-        return [_build(_fetch('series/%s' % series_id))]
+        return [Series(_fetch('series/%s' % series_id))]
 
     @staticmethod
     def recent_programs(category_id='all-programs'):
@@ -373,7 +371,6 @@ class NRK(object):
         print('%s programs' % len(programs))
         print('%s media files in total' % (total + len(programs)))
         return series + programs
-
 
     @staticmethod
     def categories():
@@ -573,6 +570,11 @@ class Media(object):
         Downloader().add((url, q, fp))
         return t
 
+    def __repr__(self):
+        return '%s %s %s' % (self.__class__.__name__,
+                             self.type,
+                             self.title)
+
 
 class Episode(Media):
     def __init__(self, data, *args, **kwargs):
@@ -683,6 +685,7 @@ class Category(Media):
         self.id = data.get('categoryId', None)
         self.name = data.get('displayValue', None)
         self.title = data.get('displayValue', None)
+
 
 
 class Subtitle(object):
