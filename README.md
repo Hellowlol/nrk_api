@@ -47,6 +47,6 @@ all_downloads.start()
 ```
 See example and source file for more examples
 
-## Other tools
-- [If you need a gui](https://bitbucket.org/snippsat/wx_nrk "snippstats wx_nrk")
+## Other tools 
+- [If you need a gui](https://bitbucket.org/snippsat/wx_nrk "snippsats wx_nrk")
 - [Other cli tool](https://github.com/kvolden/nrk_download "nrk_download")
