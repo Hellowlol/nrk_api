@@ -98,5 +98,5 @@ def test_program_static():
 #test_seasons_live()
 #test_parse_url_live()
 #test_download_live()
-test_program_static()
+#test_program_static()
 #test_download_live()
