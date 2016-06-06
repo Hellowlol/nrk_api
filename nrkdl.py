@@ -192,14 +192,14 @@ def parse_uri(urls):
             elif t == 'program':
                 programid = u[4]
 
-            if id:
+            if programid:
                 obs.append(programid)
 
         except IndexError:
             # try to parse the webpage
             pass
 
-    return [i for i in obs if i is not None]
+    return [i for i in obs if i is not None or i is not '']
 
 
 class NRK(object):
@@ -395,19 +395,23 @@ class NRK(object):
                 html = r.text
 
                 meta_tags = regex.findall(html)
+
                 # only add it to the dict if the value exist
-                meta = {k: v for k, v in meta_tags if len(v)}
+                meta = dict((k, v) for k, v in meta_tags if len(v))
                 if meta.get('programid'):
                     p_ids.append(meta.get('programid'))
                 else:
                     logging.debug('The url has no programid')
 
         if p_ids:
+            p_ids = set(p_ids)
             for i in p_ids:
                 media = NRK.program(i)[0]
                 if cls.subtitle is True:
                     media.subtitle()
                 to_dl.append(media.download())
+        else:
+            logging.warning('Couldnt find a url parsing the site or via urls')
 
         if to_dl:
             NRK._download_all(to_dl)
@@ -437,11 +441,17 @@ class NRK(object):
         try:
             urls = []
             with open(f, 'r') as f:
-                urls = [ff.strip('\n') for ff in f.readlines()]
-            NRK.parse_url(' '.join(urls))
+                urls = [ff.strip('\n') for ff in f.readlines() if ff]
+
+            if urls:
+                return NRK.parse_url(' '.join(urls))
+            else:
+                logging.warning('No urls in the file')
+                return []
 
         except Exception as e:
             logging.exception('%s' % e)
+            return []
 
     @staticmethod
     def _console(q):
@@ -780,7 +790,7 @@ class Subtitle(object):
         response = session.post('https://translate.googleusercontent.com/translate_f',
                                 files={'file': ('trans.txt', '\r\r'.join(text), "text/plain")},
                                 data={'sl': 'no',
-                                      'tl': TRANSLATE,
+                                      #'tl': TRANSLATE,
                                       'js': 'y',
                                       'prev': '_t',
                                       'hl': 'en',

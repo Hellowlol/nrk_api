@@ -21,13 +21,15 @@ def ppatch(ff=None):
             try:
                 with open(argument, 'r') as f:
                     j = load(f)
-            except OSError as e:
-                print('load failed %s' % e)
-
+            except:
                 try:
                     j = loads(argument)
                 except:
-                    print('loads failed %s' % e)
+                    pass
+
+            if j is None:
+                # default to file path
+                j = argument
 
             return function(j, *args, **kwargs)
         return inner
@@ -73,7 +75,7 @@ def make_responses():
 #make_responses()
 
 #@ppatch('C:\Users\admin\Documents\GitHub\nrkdl\responses\search_lille_jack.json')
-@ppatch('C:\Users\admin\Desktop\search_lille_jack.json')
+#@ppatch('C:\Users\admin\Desktop\search_lille_jack.json')
 def test(data, *args, **kwargs):
     print(data)
 

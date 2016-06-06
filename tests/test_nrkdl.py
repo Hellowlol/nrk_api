@@ -50,6 +50,7 @@ def test_download_live(*args):
     assert folder == 'Brannmann Sam'
     assert len(NRK.downloads()) == 1
     #NRK.downloads().start()
+    NRK.downloads().clear()
 
 
 def test_series_live():
@@ -76,14 +77,32 @@ def test_site_rip_live():
 
 
 def test_parse_url_live():
-    parsed = NRK.parse_url('https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10 http://tv.nrksuper.no/serie/lili/MSUI28008314/sesong-1/episode-3')
-    assert len(parsed) == 2
+    """ tests parsing of the uri and fallbacks to html
+        also tests the downloader and clearing the downloader
+    """
+    parsed = NRK.parse_url('https://tv.nrk.no/serie/skam https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10 http://tv.nrksuper.no/serie/lili/MSUI28008314/sesong-1/episode-3')
+    assert len(parsed) == 3
+    assert len(NRK.downloads()) == 3
+    # clean q.
+    NRK.downloads().clear()
+    assert len(NRK.downloads()) == 0
 
 
 def test_seasons_live():
     r = NRK.series('brannmann-sam')
     x = sorted([s.season_number for s in r[0].seasons()])
     assert x == [1, 2, 3, 4, 5]
+
+
+@ppatch('from_file.txt')
+def test_from_file_static(f):
+    parsed = NRK._from_file(f)
+    assert len(parsed) == 3
+    assert len(NRK.downloads()) == 3
+    # clean q.
+    NRK.downloads().clear()
+    assert len(NRK.downloads()) == 0
+
 
 
 @ppatch('program.json')
@@ -100,3 +119,4 @@ def test_program_static():
 #test_download_live()
 #test_program_static()
 #test_download_live()
+#test_from_file_static()
