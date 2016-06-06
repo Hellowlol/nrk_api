@@ -4,21 +4,28 @@ from __future__ import print_function
 
 import requests
 import os
+from os.path import dirname, abspath, join
+from json import load, loads
 
-def ppatch(argument):
+c_dir = dirname(abspath(__file__))
+
+
+def ppatch(ff=None):
     def outer(function):
         def inner(*args, **kwargs):
-            import json
             j = None
+
+            if ff:
+                argument = join(dirname(abspath(__file__)), 'responses', ff)
 
             try:
                 with open(argument, 'r') as f:
-                    j = json.load(f)
+                    j = load(f)
             except OSError as e:
                 print('load failed %s' % e)
 
                 try:
-                    j = json.loads(argument)
+                    j = loads(argument)
                 except:
                     print('loads failed %s' % e)
 
@@ -32,7 +39,7 @@ def make_responses():
 
     d = {'search': 'search/brannman+sam',
          'series': 'series/brannman-sam',
-         'program': 'programs/MSUI22009414',
+         'program': 'programs/msui22009314',
          'programs': 'categories/all-programs/programs',
          'categories': 'categories/',
          'all_programs': 'categories/all-programs/programs',
@@ -41,7 +48,7 @@ def make_responses():
          'recommanded_programs': 'categories/all-programs/recommendedprograms'
         }
 
-    rp = os.path.join(os.getcwd(), 'responses')
+    rp = join(c_dir, 'responses')
 
     try:
 
@@ -63,7 +70,7 @@ def make_responses():
             print(e)
 
 
-make_responses()
+#make_responses()
 
 #@ppatch('C:\Users\admin\Documents\GitHub\nrkdl\responses\search_lille_jack.json')
 @ppatch('C:\Users\admin\Desktop\search_lille_jack.json')

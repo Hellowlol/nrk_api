@@ -92,65 +92,6 @@ def timeme(func):
     return inner
 
 
-def dl(item, *args, **kwargs):
-    """Downloads a media file
-
-       ('url', 'high', 'filepath')
-
-    """
-
-    url, quality, filename = item
-
-    if DRY_RUN:
-        print(c_out('Should have downloaded %s because but didnt because of -dry_run\n' % filename))
-        return
-
-    # encode to the consoles damn charset...
-    if not PY3 and os.name == 'nt':
-        # subprocess and py2 dont like unicode on windows
-        url = url.encode(ENCODING)
-        filename = filename.encode(ENCODING, 'ignore')
-
-    q = '' if VERBOSE else '-loglevel quiet '
-    cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv" \n' % (q, url, filename)
-    process = subprocess.Popen(cmd,
-                               shell=True,
-                               stdin=subprocess.PIPE,
-                               stdout=subprocess.PIPE,
-                               stderr=None)
-
-    o, e = process.communicate()
-    process.stdin.close()
-    return 1
-
-
-def _download_all(items):
-    """Async download of the files.
-
-       Example: [(url, quality, file_path)]
-
-    """
-
-    global WORKERS
-    # Don't start more workers then 1:1
-    if WORKERS < len(items):
-        WORKERS = len(items)
-
-    pool = ThreadPool(WORKERS)
-    chunks = 1  # TODO
-    # 1 ffmpeg is normally 10x- 20x * 2500kbits ish
-    # so depending on how many items you download and
-    # your bandwidth you might need to tweak chunk
-
-    results = pool.imap_unordered(dl, items, chunks)
-    try:
-        for j in tqdm.tqdm(results, total=len(items)):
-            pass
-    finally:
-        pool.close()
-        pool.join()
-
-
 def _console_select(l, print_args=None):
     """ Helper function to allow grab dicts/objects from list with ints and slice. """
     print('\n')
@@ -206,7 +147,7 @@ def _fetch(path, **kwargs):
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        logging.exception('Failed to %s' % e)
+        logging.exception('Failed to %s %s' % (path, e))
         return []
 
 
@@ -239,36 +180,95 @@ def _build(item):
         return Program(item)
 
 
-def parse_url(s):
-    """ parse a url from super and/or nrk and download the video """
-
-    urls = [u.strip() for u in s.split(' ')]
-    to_dl = []
-    # grouped regex for the meta tag
-    regex = re.compile(r'<meta\sname="(.*?)"\scontent="(.*?)"\s/>')
-
+def parse_uri(urls):
+    obs = []
     for s in urls:
-        r = requests.get(s)
-        html = r.text
+        u = s.split('/')
+        programid = None
+        try:
+            t = u[3]
+            if t == 'serie':
+                programid = u[5]
+            elif t == 'program':
+                programid = u[4]
 
-        meta_tags = regex.findall(html)
-        # only add it to the dict if the value exist
-        meta = {k: v for k, v in meta_tags if len(v)}
-        if meta.get('programid'):
-            media = NRK().program(meta.get('programid'))[0]
-            if SUBTITLE is True:
-                media.subtitle()
+            if id:
+                obs.append(programid)
 
-            to_dl.append(media.download())
-        else:
-            logging.debug('The url has no programid')
+        except IndexError:
+            # try to parse the webpage
+            pass
 
-    if to_dl:
-        _download_all(to_dl)
+    return [i for i in obs if i is not None]
 
 
 class NRK(object):
     """ Useless class """
+    dry_run = DRY_RUN
+    encoding = ENCODING
+    workers = WORKERS
+    verbose = VERBOSE
+    save_path = SAVE_PATH
+    subtitle = SUBTITLE
+
+    @classmethod
+    def dl(cls, item, *args, **kwargs):
+        """Downloads a media file
+
+           ('url', 'high', 'filepath')
+
+        """
+
+        url, quality, filename = item
+
+        if NRK.dry_run:
+            print(c_out('Should have downloaded %s because but didnt because of -dry_run\n' % filename))
+            return
+
+        # encode to the consoles damn charset...
+        if not PY3 and os.name == 'nt':
+            # subprocess and py2 dont like unicode on windows
+            url = url.encode(cls.encoding)
+            filename = filename.encode(cls.encoding, 'ignore')
+
+        q = '' if cls.verbose else '-loglevel quiet '
+        cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv" \n' % (q, url, filename)
+        process = subprocess.Popen(cmd,
+                                   shell=True,
+                                   stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE,
+                                   stderr=None)
+
+        o, e = process.communicate()
+        process.stdin.close()
+        return 1
+
+    @classmethod
+    def _download_all(cls, items):
+        """Async download of the files.
+
+           Example: [(url, quality, file_path)]
+
+        """
+
+        # Don't start more workers then 1:1
+        if cls.workers < len(items):
+            cls.workers = len(items)
+
+        pool = ThreadPool(cls.workers)
+        chunks = 1  # TODO
+        # 1 ffmpeg is normally 10x- 20x * 2500kbits ish
+        # so depending on how many items you download and
+        # your bandwidth you might need to tweak chunk
+
+        results = pool.imap_unordered(cls.dl, items, chunks)
+        try:
+            for j in tqdm.tqdm(results, total=len(items)):
+                pass
+        finally:
+            pool.close()
+            pool.join()
+
 
     @staticmethod
     def search(q, raw=False, strict=False):
@@ -317,11 +317,9 @@ class NRK(object):
         else:
             return [Program(item)]
 
-        #return [_build(_fetch('programs/%s' % program_id))]
-
     @staticmethod
     def series(series_id):
-        return [_build(_fetch('series/%s' % series_id))]
+        return [Series(_fetch('series/%s' % series_id))]
 
     @staticmethod
     def recent_programs(category_id='all-programs'):
@@ -374,6 +372,47 @@ class NRK(object):
         print('%s media files in total' % (total + len(programs)))
         return series + programs
 
+    @classmethod
+    def parse_url(cls, s):
+        """ parse a url from super and/or nrk and download the video """
+
+        urls = [u.strip() for u in s.split(' ')]
+        to_dl = []
+        p_ids = []
+
+        # Lets try to get the program id from the uri
+        p_ids = parse_uri(urls)
+
+        # Fallback to parsing html of that url if we didnt find them all
+        if not p_ids or len(p_ids) < len(urls):
+            logging.info('Couldnt extract programid/seriesid from the url '
+                         'fallback to parsing the site')
+            # grouped regex for the meta tag
+            regex = re.compile(r'<meta\sname="(.*?)"\scontent="(.*?)"\s/>')
+
+            for s in urls:
+                r = requests.get(s)
+                html = r.text
+
+                meta_tags = regex.findall(html)
+                # only add it to the dict if the value exist
+                meta = {k: v for k, v in meta_tags if len(v)}
+                if meta.get('programid'):
+                    p_ids.append(meta.get('programid'))
+                else:
+                    logging.debug('The url has no programid')
+
+        if p_ids:
+            for i in p_ids:
+                media = NRK.program(i)[0]
+                if cls.subtitle is True:
+                    media.subtitle()
+                to_dl.append(media.download())
+
+        if to_dl:
+            NRK._download_all(to_dl)
+
+        return to_dl
 
     @staticmethod
     def categories():
@@ -399,7 +438,7 @@ class NRK(object):
             urls = []
             with open(f, 'r') as f:
                 urls = [ff.strip('\n') for ff in f.readlines()]
-            parse_url(' '.join(urls))
+            NRK.parse_url(' '.join(urls))
 
         except Exception as e:
             logging.exception('%s' % e)
@@ -514,21 +553,21 @@ class Media(object):
         self.data = data
         self.name = data.get('name', '') or data.get('title', '')
         self.name = self.name.strip()
-        self.title = data.get('title')  # test
+        self.title = data.get('title')
         self.type = data.get('type', None)
-        self.id = data.get('id', None)  # check this
+        self.id = data.get('id', None)
         self.available = data.get('isAvailable', False)
         self.file_name = self._filename()
         self.file_path = os.path.join(SAVE_PATH, clean_name(self.name), self.file_name)
 
-        if 'episodeNumberOrDate' in data:
+        if self.data.get('episodeNumberOrDate'):
             self.full_title = '%s %s' % (self.name, data.get('episodeNumberOrDate', ''))
         else:
             self.full_title = self.title
 
     def _filename(self):
         name = clean_name(self.name)
-        if 'episodeNumberOrDate' in self.data:
+        if self.data.get('episodeNumberOrDate'):
             name += ' %s' % self.data.get('episodeNumberOrDate', '').strip()
             # remove stuff that ffmpeg could complain about
             name = clean_name(name)
@@ -572,6 +611,20 @@ class Media(object):
         t = (url, q, fp)
         Downloader().add((url, q, fp))
         return t
+
+    def __eq__(self, other):
+        return (self.id == other.id and
+                self.title == other.title and
+                self.type == other.type and
+                self.full_title == other.full_title and
+                self.file_path == other.file_path and
+                self.file_name == other.file_name and
+                self.available == other.available)
+
+    def __repr__(self):
+        return '%s %s %s' % (self.__class__.__name__,
+                             self.type,
+                             self.full_title)
 
 
 class Episode(Media):
@@ -626,8 +679,11 @@ class Series(Media):
 
     def seasons(self):
         all_seasons = []  # the lowest seasonnumer in a show in the first season
-        s_list = sorted([s['id'] for s in self.data['seasons']])
+        # If there isnt a seasons its from /serie/
+        sea = self.data.get('seasons') or self.data.get('seasonIds')
+        s_list = sorted([s['id'] for s in sea])
         for i, id in enumerate(s_list):
+            i += 1 # season 0 is usually specials we dont want that
             s = Season(season_number=i,
                        id=id,
                        series_name=self.name,
@@ -669,7 +725,7 @@ class Downloader(object):
     @classmethod
     def start(cls):
         print('Downloads starting soon.. %s downloads to go' % len(cls.files_to_download))
-        return _download_all(cls.files_to_download)
+        return NRK._download_all(cls.files_to_download)
 
     @classmethod
     def clear(cls):
@@ -683,6 +739,7 @@ class Category(Media):
         self.id = data.get('categoryId', None)
         self.name = data.get('displayValue', None)
         self.title = data.get('displayValue', None)
+
 
 
 class Subtitle(object):
@@ -719,7 +776,7 @@ class Subtitle(object):
     def translate(cls, text):
         # check this
         # from https://github.com/jashandeep-sohi/nrksub
-        '''
+
         response = session.post('https://translate.googleusercontent.com/translate_f',
                                 files={'file': ('trans.txt', '\r\r'.join(text), "text/plain")},
                                 data={'sl': 'no',
@@ -733,7 +790,7 @@ class Subtitle(object):
                                 headers={"Referer": "https://translate.google.com/"}
                                 )
         return response.text
-        '''
+
 
     @classmethod
     def add(cls):
@@ -860,7 +917,7 @@ if __name__ == '__main__':
         NRK._from_file(p.input_file)
 
     if p.url:
-        parse_url(p.url)
+        NRK.parse_url(p.url)
 
     elif p.search:
         print(p.search)
