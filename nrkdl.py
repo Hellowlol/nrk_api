@@ -293,7 +293,7 @@ class NRK(object):
             if not raw:
                 if s['hits'] is None:
                     return []
-                return filter(None, map(_build, s['hits']))
+                return list(filter(None, map(_build, s['hits'])))
             else:
                 return s
         else:
