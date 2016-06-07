@@ -1,5 +1,5 @@
 # nrkdl
-Simple commandline tool to download all episodes of a show from nrk/nrk super with py2/3 (tested with 2.7 and 3.5)
+Simple commandline tool to download all episodes of a show from nrk/nrk super with python 2.6-3.5
 
 ## Search
 ```
@@ -47,6 +47,6 @@ all_downloads.start()
 ```
 See example and source file for more examples
 
-## Other tools 
+## Similar tools
 - [If you need a gui](https://bitbucket.org/snippsat/wx_nrk "snippsats wx_nrk")
 - [Other cli tool](https://github.com/kvolden/nrk_download "nrk_download")
