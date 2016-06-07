@@ -26,11 +26,11 @@ https://github.com/tamland/xbmc-addon-nrk/blob/master/nrktv.py
 
 if sys.version_info >= (3, 0):
     PY3 = True
-    raw_input = input
     xrange = range
 
 else:
     PY3 = False
+
 
 try:
     from urllib import quote_plus as qp
@@ -72,24 +72,21 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 def c_out(s):
     if not PY3:
-        return s.encode(ENCODING, 'ignore')
+        return s.encode(NRK.encoding, 'ignore')
     else:
         return s
+
+
+def compat_input(s=''):
+    try:
+        return raw_input(s)
+    except NameError:
+        return input(s)
 
 
 def clean_name(s):
     s = re.sub(r'[-/\\\?%\*|"<>]', '', s).replace(':', '_')
     return s
-
-
-def timeme(func):
-    @wraps(func)
-    def inner(*args, **kwargs):
-        start = time.time()
-        res = func(*args)
-        logging.info('\n\n%s took %s' % (func.__name__, time.time() - start))
-        return res
-    return inner
 
 
 def _console_select(l, print_args=None):
@@ -107,7 +104,7 @@ def _console_select(l, print_args=None):
         if not isinstance(stuff, (list, dict, tuple)):  # classes, functions
             try:
                 x = [c_out(getattr(stuff, x)) for x in print_args]
-                x.insert(0, '{:>3}:'.format(i))
+                x.insert(0, '{0:>3}:'.format(i))
                 print(' '.join(x))
 
             except Exception as e:
@@ -115,17 +112,17 @@ def _console_select(l, print_args=None):
 
         elif isinstance(stuff, tuple):  # unbound, used to build a menu
             x = [c_out(stuff[x]) for x in print_args if stuff[x]]
-            x.insert(0, '{:>3}:'.format(i))
+            x.insert(0, '{0:>3}:'.format(i))
             print(' '.join(x))
 
         else:
             # Normally a dict
             x = [c_out(stuff.get(k)) for k in print_args if stuff.get(k)]
-            x.insert(0, '{:>3}:'.format(i))
+            x.insert(0, '{0:>3}:'.format(i))
             print(' '.join(x))
 
     # select the grab...
-    grab = raw_input('\nSelect a number or use slice notation\n')
+    grab = compat_input('\nSelect a number or use slice notation\n')
     # Check if was slice..
     if any(s in grab for s in (':', '::', '-')):
         grab = slice(*map(lambda x: int(x.strip()) if x.strip() else None, grab.split(':')))
@@ -467,12 +464,12 @@ class NRK(object):
         else:
             # use reverse since 0 is the closest match and i dont want to scoll
             for i, hit in reversed(list(enumerate(response['hits']))):
-                print('{:>3}: {}'.format(i, c_out(hit['hit']['title'])))
+                print('{0:>3}: {1}'.format(i, c_out(hit['hit']['title'])))
 
             # If there are more then one result, the user should pick a show
             if len(response['hits']) > 1:
 
-                grab = raw_input('\nSelect a number or use slice notation\n')
+                grab = compat_input('\nSelect a number or use slice notation\n')
                 # Check if was slice..
                 if any(s in grab for s in (':', '::', '-')):
                     grab = slice(*map(lambda x: int(x.strip()) if x.strip() else None, grab.split(':')))
@@ -516,6 +513,7 @@ class NRK(object):
 
             if NRK.downloads():
                 NRK.downloads().start()
+                return NRK.downloads()
             else:
                 print('Nothing to download')
 
@@ -542,7 +540,7 @@ class NRK(object):
                 continue
             print(c_out('%s\n' % m_e.name))
             print(c_out('%s\n' % m_e.description))
-            a = raw_input('Do you wish to download this? y/n/all\n')
+            a = compat_input('Do you wish to download this? y/n/all\n')
             if a == 'y':
                 m_e.download()
             elif a == 'all':
@@ -550,12 +548,15 @@ class NRK(object):
                 dl_all = True
 
         if NRK.downloads():
-            aa = raw_input('Download que is %s do you wish to download everything now? y/n\n' % len(NRK.downloads()))
+            aa = compat_input('Download que is %s do you wish to download everything now? y/n\n' % len(NRK.downloads()))
             d = NRK.downloads()
             if aa == 'y':
                 d.start()
             else:
                 d.clear()
+            return d
+        else:
+            return []
 
 
 class Media(object):
@@ -751,14 +752,9 @@ class Category(Media):
         self.title = data.get('displayValue', None)
 
 
-
 class Subtitle(object):
     # tested and works but slow.., add translate?
     all_subs = []
-
-    #def __init__(self):
-    #    pass
-    #        # filename
 
     @classmethod
     def get_subtitles(cls, video_id, name=None, file_name=None, translate=False):

@@ -6,6 +6,7 @@ import requests
 import os
 from os.path import dirname, abspath, join
 from json import load, loads
+import logging
 
 c_dir = dirname(abspath(__file__))
 
@@ -48,7 +49,7 @@ def make_responses():
          'channels': 'channels',
          'popular_programs': 'categories/all-programs/popularprograms',
          'recommanded_programs': 'categories/all-programs/recommendedprograms'
-        }
+         }
 
     rp = join(c_dir, 'responses')
 
@@ -71,8 +72,14 @@ def make_responses():
         except Exception as e:
             print(e)
 
-
-#make_responses()
+def timeme(func):
+    @wraps(func)
+    def inner(*args, **kwargs):
+        start = time.time()
+        res = func(*args)
+        logging.info('\n\n%s took %s' % (func.__name__, time.time() - start))
+        return res
+    return inner
 
 #@ppatch('C:\Users\admin\Documents\GitHub\nrkdl\responses\search_lille_jack.json')
 #@ppatch('C:\Users\admin\Desktop\search_lille_jack.json')
