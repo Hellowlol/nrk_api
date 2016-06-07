@@ -1,4 +1,4 @@
-# nrkdl
+# nrkdl [![Build Status](https://travis-ci.org/Hellowlol/nrkdl.svg?branch=master)](https://travis-ci.org/Hellowlol/nrkdl)
 Simple commandline tool to download all episodes of a show from nrk/nrk super with python 2.6-3.5
 
 ## Search
