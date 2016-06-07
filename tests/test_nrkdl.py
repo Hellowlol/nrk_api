@@ -61,7 +61,7 @@ def test_series_live():
 def test_categories_live():
     r = NRK.categories()
     sl = [c.id for c in sorted(r, key=lambda v: v.id)]
-    assert sl == ['all-programs', 'barn', 'dokumentar', 'drama-serier', 'film', 'humor',
+    assert sl == ['NRK-arkivet', 'all-programs', 'barn', 'dokumentar', 'drama-serier', 'film', 'humor',
                   'kultur', 'livsstil', 'natur', 'nyheter', 'samisk', 'sport', 'synstolk',
                   'tegnspraak', 'underholdning', 'vitenskap']
 
@@ -76,11 +76,14 @@ def test_site_rip_live():
     pass
 
 
-def test_parse_url_live():
+@mock.patch('os.makedirs')
+def test_parse_url_live(*args):
     """ tests parsing of the uri and fallbacks to html
         also tests the downloader and clearing the downloader
     """
-    parsed = NRK.parse_url('https://tv.nrk.no/serie/skam https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10 http://tv.nrksuper.no/serie/lili/MSUI28008314/sesong-1/episode-3')
+    parsed = NRK.parse_url('https://tv.nrk.no/serie/skam '
+                           'https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10 '
+                           'http://tv.nrksuper.no/serie/lili/MSUI28008314/sesong-1/episode-3')
     assert len(parsed) == 3
     assert len(NRK.downloads()) == 3
     # clean q.
@@ -94,15 +97,15 @@ def test_seasons_live():
     assert x == [1, 2, 3, 4, 5]
 
 
+@mock.patch('os.makedirs')
 @ppatch('from_file.txt')
-def test_from_file_static(f):
+def test_from_file_static(f, *args):
     parsed = NRK._from_file(f)
     assert len(parsed) == 3
     assert len(NRK.downloads()) == 3
     # clean q.
     NRK.downloads().clear()
     assert len(NRK.downloads()) == 0
-
 
 
 @ppatch('program.json')
