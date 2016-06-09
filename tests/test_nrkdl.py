@@ -120,7 +120,7 @@ def test_console_live(*args, **kwargs):
     """ Try to download the last episode of brannman sam via cli """
     with mock.patch(ips, side_effect=['0', '0']):
         NRK.encoding = 'utf-8'
-        t = NRK._console('Brannman Sam')
+        t = NRK._console('Brannmann Sam')
         assert len(t) == 1
 
 

@@ -41,6 +41,7 @@ API_URL = 'https://tvapi.nrk.no/v1/'
 
 session = requests.Session()
 session.headers['app-version-android'] = '999'
+session.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36'
 
 CLI = False
 ENCODING = None
