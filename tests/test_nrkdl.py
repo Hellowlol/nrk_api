@@ -2,9 +2,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-import mock
 from os.path import dirname, abspath, split, basename
 import sys
+import subprocess
+
+import mock
+import pytest
 
 sys.path.append(dirname(dirname(abspath(__file__))))
 
@@ -12,13 +15,16 @@ from nrkdl import NRK
 import nrkdl
 from utils import ppatch
 
+
 # We dont want to download ANY files
 NRK.dry_run = True
 
 if sys.version_info >= (3, 0):
     PY3 = True
+    ips = 'builtins.input'
 else:
     PY3 = False
+    ips = '__builtin__.raw_input'
 
 
 def c_out(s):
@@ -26,6 +32,17 @@ def c_out(s):
         return s.encode('latin-1', 'ignore')
     else:
         return s
+
+
+def q_clear():
+    def outer(func):
+        def inner(*args, **kwargs):
+            try:
+                func(*args, **kwargs)
+            finally:
+                NRK.downloads().clear()
+        return inner
+    return outer
 
 
 def test_search_live():
@@ -38,6 +55,7 @@ def test_program_live():
     assert r[0].full_title == 'Brannmann Sam 23:26'
 
 
+@q_clear()
 @mock.patch('os.makedirs')
 def test_download_live(*args):
     r = NRK.program('msui22009314')
@@ -49,8 +67,6 @@ def test_download_live(*args):
     assert f == 'Brannmann Sam 23_26'
     assert folder == 'Brannmann Sam'
     assert len(NRK.downloads()) == 1
-    #NRK.downloads().start()
-    NRK.downloads().clear()
 
 
 def test_series_live():
@@ -76,6 +92,7 @@ def test_site_rip_live():
     pass
 
 
+@q_clear()
 @mock.patch('os.makedirs')
 def test_parse_url_live(*args):
     """ tests parsing of the uri and fallbacks to html
@@ -97,6 +114,26 @@ def test_seasons_live():
     assert x == [1, 2, 3, 4, 5]
 
 
+@q_clear()
+@mock.patch('os.makedirs')
+def test_console_live(*args, **kwargs):
+    """ Try to download the last episode of brannman sam via cli """
+    with mock.patch(ips, side_effect=['0', '0']):
+        NRK.encoding = 'utf-8'
+        t = NRK._console('Brannman Sam')
+        assert len(t) == 1
+
+
+@q_clear()
+@mock.patch('os.makedirs')
+def test_browse_live(*args, **kwargs):
+    NRK.encoding = 'utf-8'
+    with mock.patch(ips, side_effect=['0', '0', '0', 'y', 'y']):
+        t = NRK._browse()
+        assert len(t) == 1
+
+
+@q_clear()
 @mock.patch('os.makedirs')
 @ppatch('from_file.txt')
 def test_from_file_static(f, *args):
@@ -117,9 +154,47 @@ def test_program_static():
     assert NRK.program('msui22009314')[0] == p()
 
 
-#test_seasons_live()
-#test_parse_url_live()
-#test_download_live()
-#test_program_static()
-#test_download_live()
-#test_from_file_static()
+def test_console_select_static():
+    d = {'name': 'word',
+         'cookie': 'monster'}
+
+    stuff = []
+    dicts = []
+    classes = []
+
+    for i in range(10):
+        dicts.append(d)
+        classes.append(p())
+
+    stuff.append(dicts)
+    stuff.append(classes)
+    # test more shit
+
+    for s in stuff:
+        with mock.patch(ips, return_value='::'):
+            x = nrkdl._console_select(s, ['name'])
+            assert len(x) == 10  # we kinda assume 10 eps exist here..
+
+
+@ppatch('program.json')
+def test_build_static(item):
+    serie = nrkdl._build(item)
+    assert serie.type == 'serie'
+
+
+def test_if_ffmpeg_is_installed_static():
+    pass
+    #assert subprocess.check_call('ffmpeg -h', shell=False) == 0
+
+
+# test_seasons_live()
+# test_parse_url_live()
+# test_download_live()
+# test_program_static()
+# test_download_live()
+# test_from_file_static()
+# test_console_select_static()
+# test_console_live()
+# test_browse_live()
+# test_console_select_static()
+#test_build_static()
