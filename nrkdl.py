@@ -657,6 +657,7 @@ class Season(Media):
         self.id = id
         self.type = 'season'
         self.season_number = season_number
+        self.full_title = 'season %s' % season_number
         self.description = description
         self.series_id = series_id
 

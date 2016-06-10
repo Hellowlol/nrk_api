@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from os.path import dirname, abspath, split, basename
+from os.path import dirname, abspath, split, basename, getsize
 import sys
 import subprocess
 
@@ -100,9 +100,10 @@ def test_parse_url_live(*args):
     """
     parsed = NRK.parse_url('https://tv.nrk.no/serie/skam '
                            'https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10 '
-                           'http://tv.nrksuper.no/serie/lili/MSUI28008314/sesong-1/episode-3')
-    assert len(parsed) == 3
-    assert len(NRK.downloads()) == 3
+                           'http://tv.nrksuper.no/serie/lili/MSUI28008314/sesong-1/episode-3 '
+                           'https://tv.nrk.no/program/KOIF40001112/iron-sky')
+    assert len(parsed) == 4
+    assert len(NRK.downloads()) == 4
     # clean q.
     NRK.downloads().clear()
     assert len(NRK.downloads()) == 0
@@ -112,6 +113,11 @@ def test_seasons_live():
     r = NRK.series('brannmann-sam')
     x = sorted([s.season_number for s in r[0].seasons()])
     assert x == [1, 2, 3, 4, 5]
+
+    eps_in_third_season = sorted([s for s in r[0].seasons()], key=lambda s: s.season_number)
+    # find another way to test this as the result will be
+    # invalid when nrk loose its usage rights to this season
+    assert len(eps_in_third_season[2].episodes()) == 52
 
 
 @q_clear()
@@ -131,6 +137,10 @@ def test_browse_live(*args, **kwargs):
     with mock.patch(ips, side_effect=['0', '0', '0', 'y', 'y']):
         t = NRK._browse()
         assert len(t) == 1
+
+
+def test_channels_live():
+    assert len(NRK.channels()) == 5
 
 
 @q_clear()
@@ -181,6 +191,14 @@ def test_build_static(item):
     serie = nrkdl._build(item)
     assert serie.type == 'serie'
 
+def test_subtitle_from_episode_from_static():
+    e = p()
+    print(e.id)
+    assert getsize(e.subtitle()) > 0
+
+def test_subtitle_from_episode_from_live():
+    assert getsize(nrkdl.Subtitle().get_subtitles('MYNT15001216', 'skam', 'skam 12:12')) > 0
+
 
 def test_if_ffmpeg_is_installed_static():
     pass
@@ -198,3 +216,6 @@ def test_if_ffmpeg_is_installed_static():
 # test_browse_live()
 # test_console_select_static()
 #test_build_static()
+#test_subtitle_from_episode_from_static()
+#test_seasons_live()
+test_channels_live()
