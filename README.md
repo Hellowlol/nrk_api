@@ -1,5 +1,5 @@
 # nrkdl [![Build Status](https://travis-ci.org/Hellowlol/nrkdl.svg?branch=master)](https://travis-ci.org/Hellowlol/nrkdl)  [![Coverage Status](https://coveralls.io/repos/github/Hellowlol/nrkdl/badge.svg?branch=c2)](https://coveralls.io/github/Hellowlol/nrkdl?branch=master)
-Simple commandline tool to download all episodes of a show from nrk/nrk super with python 2.6-3.5
+Simple commandline tool to download all episodes of a show from nrk/nrk super with python 2.6 - 3.5
 
 ## Search
 ```

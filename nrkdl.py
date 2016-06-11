@@ -4,15 +4,13 @@ from __future__ import print_function
 
 
 import locale
-from io import BytesIO
+from io import StringIO
 from multiprocessing.dummy import Pool as ThreadPool
 import logging
 import os
 import re
 import subprocess
 import sys
-import time
-from functools import wraps
 
 
 import requests
@@ -27,7 +25,6 @@ https://github.com/tamland/xbmc-addon-nrk/blob/master/nrktv.py
 if sys.version_info >= (3, 0):
     PY3 = True
     xrange = range
-
 else:
     PY3 = False
 
@@ -777,6 +774,8 @@ class Subtitle(object):
         file_name = os.path.join(SAVE_PATH, name, file_name)
 
         with open(file_name, 'w') as f:
+            if not PY3:
+                content = content.encode('utf-8', 'ignore')
             f.write(content)
         return file_name
 
@@ -847,7 +846,7 @@ class Subtitle(object):
             start_next, _, _ = subtitles[i + 1]
             subtitles[i] = (start, min(end, start_next - 1), text)
 
-        output = BytesIO()
+        output = StringIO()
         for i, (start, end, text) in enumerate(subtitles):
             text = text.replace('<span style="italic">', '<i>') \
                 .replace('</span>', '</i>') \
@@ -855,13 +854,12 @@ class Subtitle(object):
                 .split()
             text = ' '.join(text)
             text = re.sub('<br />\s*', '\n', text)
-            text = text.encode('utf8', 'ignore')
 
-            output.write(str(i + 1))
-            output.write('\n%s' % cls._time_to_str(start))
-            output.write(' --> %s\n' % cls._time_to_str(end))
+            output.write(u'%s' % (i + 1))
+            output.write(u'\n%s' % cls._time_to_str(start))
+            output.write(u' --> %s\n' % cls._time_to_str(end))
             output.write(text)
-            output.write('\n\n')
+            output.write(u'\n\n')
 
         return output.getvalue()
 
