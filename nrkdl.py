@@ -678,7 +678,7 @@ class Series(Media):
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
         self.type = 'serie'
-        self.id = data.get('seriesId'),
+        self.id = data.get('seriesId')
         self.title = data['title'].strip()
         self.name = data['title'].strip()
         self.description = data.get('description', '')
@@ -693,7 +693,7 @@ class Series(Media):
         sea = self.data.get('seasons') or self.data.get('seasonIds')
         s_list = sorted([s['id'] for s in sea])
         for i, id in enumerate(s_list):
-            i += 1 # season 0 is usually specials we dont want that
+            i += 1  # season 0 is usually specials we dont want that
             s = Season(season_number=i,
                        id=id,
                        series_name=self.name,
@@ -718,8 +718,9 @@ class Channel(Media):
         self.priority = data.get('priority')
 
     def epg(self):
-        # Fix me
-        return [_build(e) for e in self.data['epg']['liveBufferEpg']]
+        # Fix me plx
+        guide = [(e.plannedStart, _build(e)) for e in self.data['epg']['liveBufferEpg']]
+        return sorted(guide, lambda v: v[0])
 
 
 class Downloader(object):
