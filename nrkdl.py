@@ -325,7 +325,7 @@ class NRK(object):
         return [Channel(data) for data in _fetch('channels/')]
 
     @staticmethod
-    def site_rip():
+    def site_rip():  # pragma: no cover
         """ Dont run this.. """
         added_ids = []
         programs = []
@@ -718,7 +718,8 @@ class Channel(Media):
         self.priority = data.get('priority')
 
     def epg(self):
-        # Fix me plx
+        # pragma: no cover
+        # TODO
         guide = [(e.plannedStart, _build(e)) for e in self.data['epg']['liveBufferEpg']]
         return sorted(guide, lambda v: v[0])
 
@@ -781,7 +782,7 @@ class Subtitle(object):
         return file_name
 
     @classmethod
-    def translate(cls, text):
+    def translate(cls, text):  # pragma: no cover
         # check this
         # from https://github.com/jashandeep-sohi/nrksub
 
@@ -801,15 +802,15 @@ class Subtitle(object):
 
 
     @classmethod
-    def add(cls):
+    def add(cls):  # pragma: no cover
         pass  # TODO
 
     @classmethod
-    def clear(cls):
+    def clear(cls):  # pragma: no cover
         pass  # TODO
 
     @classmethod
-    def start(cls):
+    def start(cls):  # pragma: no cover
         pass  # TODO
 
     @classmethod
@@ -865,7 +866,7 @@ class Subtitle(object):
         return output.getvalue()
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     import argparse
 
     parser = argparse.ArgumentParser()
