@@ -52,7 +52,7 @@ APICALLS = 0
 logging.basicConfig(level=logging.DEBUG)
 
 try:
-    locale.setlocale(locale.LC_ALL, "")
+    #locale.setlocale(locale.LC_ALL, "")
     ENCODING = locale.getpreferredencoding()
 except (locale.Error, IOError):
     ENCODING = 'utf-8'
@@ -205,6 +205,8 @@ class NRK(object):
     verbose = VERBOSE
     save_path = SAVE_PATH
     subtitle = SUBTITLE
+    cli = CLI
+
 
     @classmethod
     def dl(cls, item, *args, **kwargs):
@@ -257,13 +259,14 @@ class NRK(object):
         # your bandwidth you might need to tweak chunk
 
         results = pool.imap_unordered(cls.dl, items, chunks)
+
         try:
-            for j in tqdm.tqdm(results, total=len(items)):
-                pass
+            if NRK.cli:
+                for j in tqdm.tqdm(results, total=len(items)):
+                    pass
         finally:
             pool.close()
             pool.join()
-
 
     @staticmethod
     def search(q, raw=False, strict=False):
@@ -866,10 +869,12 @@ class Subtitle(object):
         return output.getvalue()
 
 
-if __name__ == '__main__':  # pragma: no cover
+def main():
     import argparse
 
     parser = argparse.ArgumentParser()
+
+    global WORKERS, DRY_RUN, ENCODING, SAVE_PATH, SUBTITLE, CLI, VERBOSE
 
     parser.add_argument('-s', '--search', default=False,
                         required=False, help='Search nrk for a show and download files')
@@ -928,8 +933,11 @@ if __name__ == '__main__':  # pragma: no cover
         NRK.parse_url(p.url)
 
     elif p.search:
-        print(p.search)
         c = NRK._console(p.search)
 
     elif p.browse:
         c = NRK._browse()
+
+
+if __name__ == '__main__':  # pragma: no cover
+    main()
