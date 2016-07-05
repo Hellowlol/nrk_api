@@ -46,32 +46,32 @@ def q_clear():
 
 
 def test_search_live():
-    r = NRK.search('brannman-sam')
-    assert r[0].name == 'Brannmann Sam'
+    r = NRK.search('Kash og Zook')
+    assert r[0].name == 'Kash og Zook'
 
 
 def test_program_live():
-    r = NRK.program('msui22009314')
-    assert r[0].full_title == 'Brannmann Sam 23:26'
+    r = NRK.program('MSUS27001913')
+    assert r[0].full_title == 'Kash og Zook S01E11'
 
 
 @q_clear()
 @mock.patch('os.makedirs')
 def test_download_live(*args):
-    r = NRK.program('msui22009314')
+    r = NRK.program('MSUS27001913')
+
     url, q, fp = r[0].download()  # add test for path
     folder, f = [basename(x) for x in split(fp)]
-
-    assert url == 'http://nordond26c-f.akamaihd.net/i/no/open/12/12e45a2be69e24cb072f9d92a9c30727224ddd0e/7595713e-ee38-4325-8d05-c0ac2e2fd53c_,141,316,563,1266,2250,.mp4.csmil/master.m3u8?cc1=uri%3Dhttps%3a%2f%2fundertekst.nrk.no%2fprod%2fMSUI22%2f00%2fMSUI22009314AA%2fTMP%2fmaster.m3u8%7Ename%3DNorsk%7Edefault%3Dyes%7Eforced%3Dno%7Elang%3Dnb'
+    assert url == 'http://nordond19b-f.akamaihd.net/i/wo/open/ec/ecbdad2e3fa4e5762e093c873ea2e3dd93529952/2fea3fe8-4c40-4ab9-9e60-3e52766c8e00_,563,1266,2250,.mp4.csmil/master.m3u8'
     assert q == 'high'
-    assert f == 'Brannmann Sam 23_26'
-    assert folder == 'Brannmann Sam'
+    assert f == 'Kash og Zook S01E11'
+    assert folder == 'Kash og Zook'
     assert len(NRK.downloads()) == 1
 
 
 def test_series_live():
-    r = NRK.series('brannmann-sam')
-    assert r[0].name == 'Brannmann Sam'
+    r = NRK.series('kash-og-zook')
+    assert r[0].name == 'Kash og Zook'
 
 
 def test_categories_live():
@@ -100,10 +100,9 @@ def test_parse_url_live(*args):
     """
     parsed = NRK.parse_url('https://tv.nrk.no/serie/skam '
                            'https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10 '
-                           'http://tv.nrksuper.no/serie/lili/MSUI28008314/sesong-1/episode-3 '
                            'https://tv.nrk.no/program/KOIF40001112/iron-sky')
-    assert len(parsed) == 4
-    assert len(NRK.downloads()) == 4
+    assert len(parsed) == 3
+    assert len(NRK.downloads()) == 3
     # clean q.
     NRK.downloads().clear()
     assert len(NRK.downloads()) == 0
@@ -148,8 +147,8 @@ def test_channels_live():
 @ppatch('from_file.txt')
 def test_from_file_static(f, *args):
     parsed = NRK._from_file(f)
-    assert len(parsed) == 3
-    assert len(NRK.downloads()) == 3
+    assert len(parsed) == 2
+    assert len(NRK.downloads()) == 2
     # clean q.
     NRK.downloads().clear()
     assert len(NRK.downloads()) == 0
@@ -161,7 +160,7 @@ def p(item):
 
 
 def test_program_static():
-    assert NRK.program('msui22009314')[0] == p()
+    assert NRK.program('MSUS27001913')[0] == p()
 
 
 def test_console_select_static():
@@ -191,11 +190,6 @@ def test_build_static(item):
     serie = nrkdl._build(item)
     assert serie.type == 'serie'
 
-def test_subtitle_from_episode_from_static():
-    e = p()
-    print(e.id)
-    assert getsize(e.subtitle()) > 0
-
 def test_subtitle_from_episode_from_live():
     assert getsize(nrkdl.Subtitle().get_subtitles('MYNT15001216', 'skam', 'skam 12:12')) > 0
 
@@ -204,10 +198,16 @@ def test_if_ffmpeg_is_installed_static():
     pass
     #assert subprocess.check_call('ffmpeg -h', shell=False) == 0
 
+@ppatch('program.json')
+def silly(item):
+    # get('series').get('seasonIds')
+    print(item['series']['seasonIds'])
+
+silly()
 
 # test_seasons_live()
 # test_parse_url_live()
-# test_download_live()
+#test_download_live()
 # test_program_static()
 # test_download_live()
 # test_from_file_static()
@@ -218,4 +218,4 @@ def test_if_ffmpeg_is_installed_static():
 #test_build_static()
 #test_subtitle_from_episode_from_static()
 #test_seasons_live()
-test_channels_live()
+#test_channels_live()
