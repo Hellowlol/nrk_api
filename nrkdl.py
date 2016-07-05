@@ -52,7 +52,7 @@ APICALLS = 0
 logging.basicConfig(level=logging.DEBUG)
 
 try:
-    locale.setlocale(locale.LC_ALL, "")
+    #locale.setlocale(locale.LC_ALL, "")
     ENCODING = locale.getpreferredencoding()
 except (locale.Error, IOError):
     ENCODING = 'utf-8'
@@ -205,6 +205,8 @@ class NRK(object):
     verbose = VERBOSE
     save_path = SAVE_PATH
     subtitle = SUBTITLE
+    cli = CLI
+
 
     @classmethod
     def dl(cls, item, *args, **kwargs):
@@ -257,13 +259,14 @@ class NRK(object):
         # your bandwidth you might need to tweak chunk
 
         results = pool.imap_unordered(cls.dl, items, chunks)
+
         try:
-            for j in tqdm.tqdm(results, total=len(items)):
-                pass
+            if NRK.cli:
+                for j in tqdm.tqdm(results, total=len(items)):
+                    pass
         finally:
             pool.close()
             pool.join()
-
 
     @staticmethod
     def search(q, raw=False, strict=False):
@@ -307,7 +310,7 @@ class NRK(object):
     def program(program_id):
         """ Get details about a program/series """
         item = _fetch('programs/%s' % program_id)
-        if item.get('title').strip() != '':
+        if item.get('seriesId', '').strip():
             return [Episode(item)]
         else:
             return [Program(item)]
@@ -570,17 +573,27 @@ class Media(object):
         self.file_path = os.path.join(SAVE_PATH, clean_name(self.name), self.file_name)
 
         if self.data.get('episodeNumberOrDate'):
-            self.full_title = '%s %s' % (self.name, data.get('episodeNumberOrDate', ''))
+            self.full_title = '%s %s' % (self.name, self._fix_sn(self.data.get('seasonId')))
         else:
             self.full_title = self.title
 
     def _filename(self):
         name = clean_name(self.name)
         if self.data.get('episodeNumberOrDate'):
-            name += ' %s' % self.data.get('episodeNumberOrDate', '').strip()
+            name += ' %s' % self._fix_sn(self.data.get('seasonId'))
             # remove stuff that ffmpeg could complain about
-            name = clean_name(name)
         return name
+
+    def _fix_sn(self, season_number=None):
+        lookup = {}
+        try:
+            for d in self.data.get('series').get('seasonIds'):
+                sn = d['name'].replace('Sesong ', '')
+                lookup[str(d['id'])] = 'S%sE%s' % (sn.zfill(2), self.data.get('episodeNumberOrDate').split(':')[0])
+
+            return lookup[str(self.data.get('seasonId'))]
+        except Exception as e:
+            return self.data.get('episodeNumberOrDate')
 
     def as_dict(self):
         """ raw response """
@@ -588,7 +601,7 @@ class Media(object):
 
     def subtitle(self):
         """ download a subtitle """
-        return Subtitle().get_subtitles(self.id, name=self.name, file_name=self.file_name)
+        return Subtitle().get_subtitles(self.id, name=self.name, file_name=self.full_title)
 
     def media_url(self):
         """ Allow mediaurl to be created manually """
@@ -615,7 +628,7 @@ class Media(object):
             if not os.path.isdir(os.path.join(path, name)):
                 raise
 
-        fp = os.path.join(path, clean_name(self.name), self.file_name)
+        fp = os.path.join(path, clean_name(self.name), self.full_title)
         q = 'high'  # fix me
         t = (url, q, fp)
         Downloader().add((url, q, fp))
@@ -640,9 +653,14 @@ class Episode(Media):
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
         self.__dict__.update(data)
+        self.season_number = kwargs.get('season_number')
         self.ep_name = data.get('episodeNumberOrDate', '')
         self.category = Category(data.get('category') if 'category' in data else None)
         self.id = data.get('programId')
+        self.type = 'episode'
+        # Because of https://tvapi.nrk.no/v1/programs/MSUS27001913 has no title
+        self.name = data.get('series', {}).get('title', '')
+        self.full_title = '%s %s' % (self.name, self._fix_sn(self.season_number))
 
 
 class Season(Media):
@@ -659,7 +677,7 @@ class Season(Media):
         self.series_id = series_id
 
     def episodes(self):
-        return [Episode(d) for d in _fetch('series/%s' % self.series_id)['programs'] if self.id == d.get('seasonId')]
+        return [Episode(d, season_number=self.season_number) for d in _fetch('series/%s' % self.series_id)['programs'] if self.id == d.get('seasonId')]
 
 
 class Program(Media):
@@ -866,10 +884,12 @@ class Subtitle(object):
         return output.getvalue()
 
 
-if __name__ == '__main__':  # pragma: no cover
+def main():
     import argparse
 
     parser = argparse.ArgumentParser()
+
+    global WORKERS, DRY_RUN, ENCODING, SAVE_PATH, SUBTITLE, CLI, VERBOSE
 
     parser.add_argument('-s', '--search', default=False,
                         required=False, help='Search nrk for a show and download files')
@@ -928,8 +948,11 @@ if __name__ == '__main__':  # pragma: no cover
         NRK.parse_url(p.url)
 
     elif p.search:
-        print(p.search)
         c = NRK._console(p.search)
 
     elif p.browse:
         c = NRK._browse()
+
+
+if __name__ == '__main__':  # pragma: no cover
+    main()
