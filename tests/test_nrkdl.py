@@ -198,16 +198,10 @@ def test_if_ffmpeg_is_installed_static():
     pass
     #assert subprocess.check_call('ffmpeg -h', shell=False) == 0
 
-@ppatch('program.json')
-def silly(item):
-    # get('series').get('seasonIds')
-    print(item['series']['seasonIds'])
-
-silly()
 
 # test_seasons_live()
 # test_parse_url_live()
-#test_download_live()
+# test_download_live()
 # test_program_static()
 # test_download_live()
 # test_from_file_static()
@@ -215,7 +209,7 @@ silly()
 # test_console_live()
 # test_browse_live()
 # test_console_select_static()
-#test_build_static()
-#test_subtitle_from_episode_from_static()
-#test_seasons_live()
-#test_channels_live()
+# test_build_static()
+# test_subtitle_from_episode_from_static()
+# test_seasons_live()
+# test_channels_live()
