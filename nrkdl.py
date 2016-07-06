@@ -52,7 +52,7 @@ APICALLS = 0
 logging.basicConfig(level=logging.DEBUG)
 
 try:
-    #locale.setlocale(locale.LC_ALL, "")
+    locale.setlocale(locale.LC_ALL, "")
     ENCODING = locale.getpreferredencoding()
 except (locale.Error, IOError):
     ENCODING = 'utf-8'
@@ -135,10 +135,10 @@ def _console_select(l, print_args=None):
 
 
 def _fetch(path, **kwargs):
+    global APICALLS
+    APICALLS += 1
     try:
         r = session.get(API_URL + path, **kwargs)
-        global APICALLS
-        APICALLS += 1
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -206,7 +206,6 @@ class NRK(object):
     save_path = SAVE_PATH
     subtitle = SUBTITLE
     cli = CLI
-
 
     @classmethod
     def dl(cls, item, *args, **kwargs):
@@ -494,7 +493,7 @@ class NRK(object):
 
                     # if we select a show, we should be able to choose all eps.
                     if 'programs' in show:
-                        all_stuff = [Episode(e) for e in show['programs'] if e['isAvailable']]
+                        all_stuff = [Episode(e, seasonIds=show['seasonIds']) for e in show['programs'] if e['isAvailable']]
 
                     # Allow selection of episodes
                     all_eps = _console_select(all_stuff, ['full_title'])
@@ -529,6 +528,7 @@ class NRK(object):
                          ]
 
         x = _console_select(what_programs, [0])
+        # this does not report S01E01 as it would require a extra apicall
         media_element = _console_select(x[0][1](categories[0].id), ['full_title'])
         # type_list should be a media object
         print('Found %s media elements' % len(media_element))
@@ -541,12 +541,14 @@ class NRK(object):
                 continue
             print(c_out('%s\n' % m_e.name))
             print(c_out('%s\n' % m_e.description))
-            a = compat_input('Do you wish to download this? y/n/all\n')
+            a = compat_input('Do you wish to download this? y/n/c/all\n')
             if a == 'y':
                 m_e.download()
             elif a == 'all':
                 m_e.download()
                 dl_all = True
+            elif a == 'c':
+                break
 
         if NRK.downloads():
             aa = compat_input('Download que is %s do you wish to download everything now? y/n\n' % len(NRK.downloads()))
@@ -573,7 +575,7 @@ class Media(object):
         self.file_path = os.path.join(SAVE_PATH, clean_name(self.name), self.file_name)
 
         if self.data.get('episodeNumberOrDate'):
-            self.full_title = '%s %s' % (self.name, self._fix_sn(self.data.get('seasonId')))
+            self.full_title = '%s %s' % (self.name, self._fix_sn(self.data.get('seasonId'), season_ids=kwargs.get('seasonIds')))
         else:
             self.full_title = self.title
 
@@ -584,12 +586,14 @@ class Media(object):
             # remove stuff that ffmpeg could complain about
         return name
 
-    def _fix_sn(self, season_number=None):
+    def _fix_sn(self, season_number=None, season_ids=None):
         lookup = {}
+        stuff = season_ids or self.data.get('series', {}).get('seasonIds')
+
         try:
-            for d in self.data.get('series').get('seasonIds'):
+            for d in stuff:
                 sn = d['name'].replace('Sesong ', '')
-                lookup[str(d['id'])] = 'S%sE%s' % (sn.zfill(2), self.data.get('episodeNumberOrDate').split(':')[0])
+                lookup[str(d['id'])] = 'S%sE%s' % (sn.zfill(2), self.data.get('episodeNumberOrDate').split(':')[0].zfill(2))
 
             return lookup[str(self.data.get('seasonId'))]
         except Exception as e:
@@ -652,15 +656,15 @@ class Media(object):
 class Episode(Media):
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
-        self.__dict__.update(data)
-        self.season_number = kwargs.get('season_number')
+        self.season_number = kwargs.get('season_number') or data.get('seasonId')
         self.ep_name = data.get('episodeNumberOrDate', '')
         self.category = Category(data.get('category') if 'category' in data else None)
         self.id = data.get('programId')
         self.type = 'episode'
         # Because of https://tvapi.nrk.no/v1/programs/MSUS27001913 has no title
-        self.name = data.get('series', {}).get('title', '')
-        self.full_title = '%s %s' % (self.name, self._fix_sn(self.season_number))
+        self.name = data.get('series', {}).get('title', '') or data.get('title')
+        # So it can be parsed from both /series and /program and /search
+        self.full_title = '%s %s' % (self.name, self._fix_sn(self.season_number, season_ids=kwargs.get('seasonIds')))
 
 
 class Season(Media):
@@ -677,7 +681,9 @@ class Season(Media):
         self.series_id = series_id
 
     def episodes(self):
-        return [Episode(d, season_number=self.season_number) for d in _fetch('series/%s' % self.series_id)['programs'] if self.id == d.get('seasonId')]
+        return [Episode(d, season_number=self.season_number) for d in
+                _fetch('series/%s' % self.series_id)['programs']
+                if self.id == d.get('seasonId')]
 
 
 class Program(Media):

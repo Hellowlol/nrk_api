@@ -4,6 +4,8 @@ from nrkdl import NRK
 """
 See https://github.com/chriskiehl/Gooey#installation-instructions
 This gui does only work with py2
+
+You also need to comment out L55 in nrkdl.py
 """
 
 
