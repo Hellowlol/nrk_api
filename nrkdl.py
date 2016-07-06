@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import sys
+from utils import c_out, compat_input, clean_name, _console_select
 
 
 import requests
@@ -40,6 +41,8 @@ session = requests.Session()
 session.headers['app-version-android'] = '999'
 session.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36'
 
+
+# Try to set some sane defaults
 CLI = False
 ENCODING = None
 SAVE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads')
@@ -67,7 +70,7 @@ except OSError as e:
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-
+'''
 def c_out(s):
     if not PY3:
         return s.encode(NRK.encoding, 'ignore')
@@ -85,6 +88,7 @@ def compat_input(s=''):
 def clean_name(s):
     s = re.sub(r'[-/\\\?%\*|"<>]', '', s).replace(':', '_')
     return s
+
 
 
 def _console_select(l, print_args=None):
@@ -132,7 +136,7 @@ def _console_select(l, print_args=None):
         l = [l]
 
     return l
-
+'''
 
 def _fetch(path, **kwargs):
     global APICALLS
@@ -199,6 +203,7 @@ def parse_uri(urls):
 
 class NRK(object):
     """ Useless class """
+    '''
     dry_run = DRY_RUN
     encoding = ENCODING
     workers = WORKERS
@@ -206,9 +211,27 @@ class NRK(object):
     save_path = SAVE_PATH
     subtitle = SUBTITLE
     cli = CLI
+    '''""
 
-    @classmethod
-    def dl(cls, item, *args, **kwargs):
+    def __init__(self,
+                 dry_run=DRY_RUN,
+                 encoding=ENCODING,
+                 workers=WORKERS,
+                 verbose=VERBOSE,
+                 save_path=SAVE_PATH,
+                 subtitle=SUBTITLE,
+                 cli=CLI):
+
+        self.dry_run = dry_run
+        self.encoding = encoding
+        self.workers = workers
+        self.verbose = verbose
+        self.save_path = save_path
+        self.subtitle = subtitle
+        self.cli = CLI
+
+    #@classmethod
+    def dl(self, item, *args, **kwargs):
         """Downloads a media file
 
            ('url', 'high', 'filepath')
@@ -217,15 +240,15 @@ class NRK(object):
 
         url, quality, filename = item
 
-        if NRK.dry_run:
+        if self.dry_run:
             print(c_out('Should have downloaded %s because but didnt because of -dry_run\n' % filename))
             return
 
         # encode to the consoles damn charset...
         if not PY3 and os.name == 'nt':
             # subprocess and py2 dont like unicode on windows
-            url = url.encode(cls.encoding)
-            filename = filename.encode(cls.encoding, 'ignore')
+            url = url.encode(self.encoding)
+            filename = filename.encode(self.encoding, 'ignore')
 
         q = '' if cls.verbose else '-loglevel quiet '
         cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv" \n' % (q, url, filename)
@@ -239,8 +262,8 @@ class NRK(object):
         process.stdin.close()
         return 1
 
-    @classmethod
-    def _download_all(cls, items):
+    #@classmethod
+    def _download_all(self, items):
         """Async download of the files.
 
            Example: [(url, quality, file_path)]
@@ -248,19 +271,19 @@ class NRK(object):
         """
 
         # Don't start more workers then 1:1
-        if cls.workers < len(items):
-            cls.workers = len(items)
+        if self.workers < len(items):
+            self.workers = len(items)
 
-        pool = ThreadPool(cls.workers)
+        pool = ThreadPool(self.workers)
         chunks = 1  # TODO
         # 1 ffmpeg is normally 10x- 20x * 2500kbits ish
         # so depending on how many items you download and
         # your bandwidth you might need to tweak chunk
 
-        results = pool.imap_unordered(cls.dl, items, chunks)
+        results = pool.imap_unordered(self.dl, items, chunks)
 
         try:
-            if NRK.cli:
+            if self.cli:
                 for j in tqdm.tqdm(results, total=len(items)):
                     pass
         finally:
@@ -369,8 +392,8 @@ class NRK(object):
         print('%s media files in total' % (total + len(programs)))
         return series + programs
 
-    @classmethod
-    def parse_url(cls, s):
+    #@classmethod
+    def parse_url(self, s):
         """ parse a url from super and/or nrk and download the video """
 
         urls = [u.strip() for u in s.split(' ')]
@@ -404,14 +427,14 @@ class NRK(object):
             p_ids = set(p_ids)
             for i in p_ids:
                 media = NRK.program(i)[0]
-                if cls.subtitle is True:
+                if self.subtitle is True:
                     media.subtitle()
                 to_dl.append(media.download())
         else:
             logging.warning('Couldnt find a url parsing the site or via urls')
 
         if to_dl:
-            NRK._download_all(to_dl)
+            self._download_all(to_dl)
 
         return to_dl
 
@@ -433,15 +456,15 @@ class NRK(object):
     def downloads():
         return Downloader()
 
-    @staticmethod
-    def _from_file(f):
+    #@staticmethod
+    def _from_file(self, f):
         try:
             urls = []
             with open(f, 'r') as f:
                 urls = [ff.strip('\n') for ff in f.readlines() if ff]
 
             if urls:
-                return NRK.parse_url(' '.join(urls))
+                return self.parse_url(' '.join(urls))
             else:
                 logging.warning('No urls in the file')
                 return []
@@ -761,7 +784,7 @@ class Downloader(object):
     @classmethod
     def start(cls):
         print('Downloads starting soon.. %s downloads to go' % len(cls.files_to_download))
-        return NRK._download_all(cls.files_to_download)
+        return NRK()._download_all(cls.files_to_download)
 
     @classmethod
     def clear(cls):

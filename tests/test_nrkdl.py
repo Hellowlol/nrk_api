@@ -17,7 +17,8 @@ from utils import ppatch
 
 
 # We dont want to download ANY files
-NRK.dry_run = True
+NRK = NRK(dry_run=True)
+#NRK.dry_run = True
 
 if sys.version_info >= (3, 0):
     PY3 = True
