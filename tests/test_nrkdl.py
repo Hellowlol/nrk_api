@@ -2,12 +2,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from os.path import dirname, abspath, split, basename, getsize
-import sys
-import subprocess
-
 import mock
-import pytest
+import subprocess
+import sys
+from os.path import abspath, basename, dirname, getsize, split
 
 sys.path.append(dirname(dirname(abspath(__file__))))
 
@@ -17,8 +15,7 @@ from utils import ppatch
 
 
 # We dont want to download ANY files
-NRK = NRK(dry_run=True)
-#NRK.dry_run = True
+nrk = NRK(dry_run=True, encoding='utf-8')
 
 if sys.version_info >= (3, 0):
     PY3 = True
@@ -99,14 +96,12 @@ def test_parse_url_live(*args):
     """ tests parsing of the uri and fallbacks to html
         also tests the downloader and clearing the downloader
     """
-    parsed = NRK.parse_url('https://tv.nrk.no/serie/skam '
-                           'https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10 '
-                           'https://tv.nrk.no/program/KOIF40001112/iron-sky')
-    assert len(parsed) == 3
-    assert len(NRK.downloads()) == 3
+    parsed = nrk.parse_url('https://tv.nrk.no/serie/skam') # https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10
+    assert len(parsed) == 1
+    assert len(nrk.downloads()) == 1
     # clean q.
-    NRK.downloads().clear()
-    assert len(NRK.downloads()) == 0
+    nrk.downloads().clear()
+    assert len(nrk.downloads()) == 0
 
 
 def test_seasons_live():
@@ -125,8 +120,7 @@ def test_seasons_live():
 def test_console_live(*args, **kwargs):
     """ Try to download the last episode of brannman sam via cli """
     with mock.patch(ips, side_effect=['0', '0']):
-        NRK.encoding = 'utf-8'
-        t = NRK._console('Brannmann Sam')
+        t = nrk._console('Brannmann Sam')
         assert len(t) == 1
 
 
@@ -135,7 +129,7 @@ def test_console_live(*args, **kwargs):
 def test_browse_live(*args, **kwargs):
     NRK.encoding = 'utf-8'
     with mock.patch(ips, side_effect=['0', '0', '0', 'y', 'y']):
-        t = NRK._browse()
+        t = nrk._browse()
         assert len(t) == 1
 
 
@@ -147,12 +141,12 @@ def test_channels_live():
 @mock.patch('os.makedirs')
 @ppatch('from_file.txt')
 def test_from_file_static(f, *args):
-    parsed = NRK._from_file(f)
+    parsed = nrk._from_file(f)
     assert len(parsed) == 2
-    assert len(NRK.downloads()) == 2
+    assert len(nrk.downloads()) == 2
     # clean q.
-    NRK.downloads().clear()
-    assert len(NRK.downloads()) == 0
+    nrk.downloads().clear()
+    assert len(nrk.downloads()) == 0
 
 
 @ppatch('program.json')
@@ -205,7 +199,7 @@ def test_if_ffmpeg_is_installed_static():
 # test_download_live()
 # test_program_static()
 # test_download_live()
-# test_from_file_static()
+#test_from_file_static()
 # test_console_select_static()
 # test_console_live()
 # test_browse_live()

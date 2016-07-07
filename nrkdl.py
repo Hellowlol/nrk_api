@@ -4,15 +4,15 @@ from __future__ import print_function
 
 
 import locale
-from io import StringIO
-from multiprocessing.dummy import Pool as ThreadPool
 import logging
 import os
 import re
 import subprocess
 import sys
-from utils import c_out, compat_input, clean_name, _console_select
+from io import StringIO
+from multiprocessing.dummy import Pool as ThreadPool
 
+from utils import compat_input, clean_name, _console_select
 
 import requests
 import tqdm
@@ -41,24 +41,12 @@ session = requests.Session()
 session.headers['app-version-android'] = '999'
 session.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36'
 
-
 # Try to set some sane defaults
-CLI = False
-ENCODING = None
 SAVE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads')
-DRY_RUN = False
-VERBOSE = False
-WORKERS = 4
-SUBTITLE = False
-
 APICALLS = 0
 logging.basicConfig(level=logging.DEBUG)
 
-try:
-    locale.setlocale(locale.LC_ALL, "")
-    ENCODING = locale.getpreferredencoding()
-except (locale.Error, IOError):
-    ENCODING = 'utf-8'
+
 
 try:
     os.makedirs(SAVE_PATH)
@@ -70,73 +58,25 @@ except OSError as e:
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-'''
-def c_out(s):
+
+def get_encoding(gui=False):
+    try:
+        if not gui:
+            locale.setlocale(locale.LC_ALL, "")
+        return locale.getpreferredencoding()
+    except (locale.Error, IOError):
+        return 'utf-8'
+
+# Feels very dirty
+ENCODING = get_encoding()
+
+# fix me
+def c_out(s, encoding=ENCODING):
     if not PY3:
-        return s.encode(NRK.encoding, 'ignore')
+        return s.encode(encoding, 'ignore')
     else:
         return s
 
-
-def compat_input(s=''):
-    try:
-        return raw_input(s)
-    except NameError:
-        return input(s)
-
-
-def clean_name(s):
-    s = re.sub(r'[-/\\\?%\*|"<>]', '', s).replace(':', '_')
-    return s
-
-
-
-def _console_select(l, print_args=None):
-    """ Helper function to allow grab dicts/objects from list with ints and slice. """
-    print('\n')
-
-    if isinstance(l, dict):
-        l = [l]
-
-    if print_args is None:
-        print_args = []
-
-    for i, stuff in reversed(list(enumerate(l))):
-
-        if not isinstance(stuff, (list, dict, tuple)):  # classes, functions
-            try:
-                x = [c_out(getattr(stuff, x)) for x in print_args]
-                x.insert(0, '{0:>3}:'.format(i))
-                print(' '.join(x))
-
-            except Exception as e:
-                print('some crap happend %s' % e)
-
-        elif isinstance(stuff, tuple):  # unbound, used to build a menu
-            x = [c_out(stuff[x]) for x in print_args if stuff[x]]
-            x.insert(0, '{0:>3}:'.format(i))
-            print(' '.join(x))
-
-        else:
-            # Normally a dict
-            x = [c_out(stuff.get(k)) for k in print_args if stuff.get(k)]
-            x.insert(0, '{0:>3}:'.format(i))
-            print(' '.join(x))
-
-    # select the grab...
-    grab = compat_input('\nSelect a number or use slice notation\n')
-    # Check if was slice..
-    if any(s in grab for s in (':', '::', '-')):
-        grab = slice(*map(lambda x: int(x.strip()) if x.strip() else None, grab.split(':')))
-        l = l[grab]
-    else:
-        l = l[int(grab)]
-
-    if not isinstance(l, list):
-        l = [l]
-
-    return l
-'''
 
 def _fetch(path, **kwargs):
     global APICALLS
@@ -203,34 +143,32 @@ def parse_uri(urls):
 
 class NRK(object):
     """ Useless class """
-    '''
-    dry_run = DRY_RUN
-    encoding = ENCODING
-    workers = WORKERS
-    verbose = VERBOSE
-    save_path = SAVE_PATH
-    subtitle = SUBTITLE
-    cli = CLI
-    '''""
 
     def __init__(self,
-                 dry_run=DRY_RUN,
-                 encoding=ENCODING,
-                 workers=WORKERS,
-                 verbose=VERBOSE,
+                 dry_run=False,
+                 encoding=None,
+                 workers=4,
+                 verbose=False,
                  save_path=SAVE_PATH,
-                 subtitle=SUBTITLE,
-                 cli=CLI):
+                 subtitle=False,
+                 cli=False,
+                 gui=False):
 
         self.dry_run = dry_run
-        self.encoding = encoding
         self.workers = workers
         self.verbose = verbose
         self.save_path = save_path
-        self.subtitle = subtitle
-        self.cli = CLI
+        self.subs = subtitle
+        self.cli = cli
 
-    #@classmethod
+        if encoding is None:
+            self.encoding = get_encoding(gui=gui)
+        else:
+            self.encoding = encoding
+
+        global ENCODING
+        ENCODING = self.encoding
+
     def dl(self, item, *args, **kwargs):
         """Downloads a media file
 
@@ -250,7 +188,7 @@ class NRK(object):
             url = url.encode(self.encoding)
             filename = filename.encode(self.encoding, 'ignore')
 
-        q = '' if cls.verbose else '-loglevel quiet '
+        q = '' if self.verbose else '-loglevel quiet '
         cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv" \n' % (q, url, filename)
         process = subprocess.Popen(cmd,
                                    shell=True,
@@ -262,7 +200,6 @@ class NRK(object):
         process.stdin.close()
         return 1
 
-    #@classmethod
     def _download_all(self, items):
         """Async download of the files.
 
@@ -392,7 +329,6 @@ class NRK(object):
         print('%s media files in total' % (total + len(programs)))
         return series + programs
 
-    #@classmethod
     def parse_url(self, s):
         """ parse a url from super and/or nrk and download the video """
 
@@ -427,7 +363,7 @@ class NRK(object):
             p_ids = set(p_ids)
             for i in p_ids:
                 media = NRK.program(i)[0]
-                if self.subtitle is True:
+                if self.subs is True:
                     media.subtitle()
                 to_dl.append(media.download())
         else:
@@ -456,7 +392,6 @@ class NRK(object):
     def downloads():
         return Downloader()
 
-    #@staticmethod
     def _from_file(self, f):
         try:
             urls = []
@@ -473,13 +408,12 @@ class NRK(object):
             logging.exception('%s' % e)
             return []
 
-    @staticmethod
-    def _console(q):
+    def _console(self, q):
         """ Used by CLI """
         to_download = []
         all_stuff = []
 
-        response = NRK.search(q, raw=True)
+        response = self.search(q, raw=True)
 
         if response['hits'] is None:
             logging.info('Didnt find anything')
@@ -531,17 +465,16 @@ class NRK(object):
             if to_download:
                 for d in to_download:
                     d.download()
-                    if SUBTITLE is True:
+                    if self.subs is True:
                         d.subtitle()
 
-            if NRK.downloads():
-                NRK.downloads().start()
-                return NRK.downloads()
+            if self.downloads():
+                self.downloads().start()
+                return self.downloads()
             else:
                 print('Nothing to download')
 
-    @staticmethod
-    def _browse():
+    def _browse(self):
         """ Browse the shows from nrk/super """
 
         categories = _console_select(NRK.categories(), ['title'])
@@ -557,7 +490,7 @@ class NRK(object):
         print('Found %s media elements' % len(media_element))
         dl_all = False
         for m_e in media_element:
-            if SUBTITLE is True:
+            if self.subs is True:
                 m_e.subtitle()
             if dl_all is True:
                 m_e.download()
@@ -573,9 +506,9 @@ class NRK(object):
             elif a == 'c':
                 break
 
-        if NRK.downloads():
-            aa = compat_input('Download que is %s do you wish to download everything now? y/n\n' % len(NRK.downloads()))
-            d = NRK.downloads()
+        if self.downloads():
+            aa = compat_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
+            d = self.downloads()
             if aa == 'y':
                 d.start()
             else:
@@ -918,12 +851,10 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    global WORKERS, DRY_RUN, ENCODING, SAVE_PATH, SUBTITLE, CLI, VERBOSE
-
     parser.add_argument('-s', '--search', default=False,
                         required=False, help='Search nrk for a show and download files')
 
-    parser.add_argument('-e', '--encoding', default='latin-1',
+    parser.add_argument('-e', '--encoding', default=None,
                         required=False, help='Set encoding')
 
     parser.add_argument('-u', '--url', default=False,
@@ -941,11 +872,11 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         required=False, help='Show ffmpeg output')
 
-    parser.add_argument('-w', '--workers', default=WORKERS,
+    parser.add_argument('-w', '--workers', default=None,
                         required=False, help='Number of thread pool workers, if your downloading \
                                               many items you might have edit the chuck')
 
-    parser.add_argument('-st', '--subtitle', action='store_true', default=SUBTITLE,
+    parser.add_argument('-st', '--subtitle', action='store_true', default=False,
                         required=False, help='Download subtitle for this media file?')
 
     parser.add_argument('-if', '--input_file', default=False,
@@ -956,31 +887,39 @@ def main():
 
     p = parser.parse_args()
 
-    DRY_RUN = p.dry_run
-    VERBOSE = p.verbose
-    SUBTITLE = p.subtitle
-    # TRANSLATE = p.translate # TODO
+    kw = {'cli': True}
 
-    CLI = True
-    ENCODING = p.encoding
+    if p.dry_run:
+        kw['dry_run'] = p.dry_run
 
     if p.workers:
-        WORKERS = int(p.workers)
+        kw['workers'] = int(p.workers)
 
     if p.save_path:
-        SAVE_PATH = p.save_path
+        kw['save_path'] = p.save_path
+
+    if p.verbose:
+        kw['verbose'] = p.verbose
+
+    if p.subtitle:
+        kw['subtitle'] = p.subtitle
+
+    if p.encoding:
+        kw['encoding'] = p.encoding
+
+    nrk = NRK(**kw)
 
     if p.input_file:
-        NRK._from_file(p.input_file)
+        nrk._from_file(p.input_file)
 
     if p.url:
-        NRK.parse_url(p.url)
+        nrk.parse_url(p.url)
 
     elif p.search:
-        c = NRK._console(p.search)
+        c = nrk._console(p.search)
 
     elif p.browse:
-        c = NRK._browse()
+        c = nrk._browse()
 
 
 if __name__ == '__main__':  # pragma: no cover

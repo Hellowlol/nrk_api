@@ -3,25 +3,43 @@ Simple commandline tool to download any/all episodes of a show from nrk/nrk supe
 
 ## Search
 ```
-> python nrkdl.py -s "lille jack"
-  4: Når lysene tennes...
-  3: Visittid
-  2: Frieren
-  1: På kino i kveld
-  0: Lille Jack
+> python nrkdl.py -s "brannma"
+  2: Brannmann i seks knop
+  1: Brannmann
+  0: Brannmann Sam
 
 Select a number or use slice notation
 0
 
-  2: Lille Jack 29:52
-  1: Lille Jack 31:52
-  0: Lille Jack 32:52
+ 22: Brannmann Sam S03E06
+ 21: Brannmann Sam S03E12
+ 20: Brannmann Sam S03E13
+ 19: Brannmann Sam S03E14
+ 18: Brannmann Sam S03E15
+ 17: Brannmann Sam S03E16
+ 16: Brannmann Sam S03E17
+ 15: Brannmann Sam S03E18
+ 14: Brannmann Sam S03E19
+ 13: Brannmann Sam S03E20
+ 12: Brannmann Sam S03E21
+ 11: Brannmann Sam S03E22
+ 10: Brannmann Sam S03E23
+  9: Brannmann Sam S03E24
+  8: Brannmann Sam S03E25
+  7: Brannmann Sam S03E26
+  6: Brannmann Sam S03E27
+  5: Brannmann Sam S03E28
+  4: Brannmann Sam S03E29
+  3: Brannmann Sam S03E30
+  2: Brannmann Sam S03E32
+  1: Brannmann Sam S03E33
+  0: Brannmann Sam S05E25
 
 Select a number or use slice notation
 ::
 
-Downloads starting soon.. 3 downloads to go
-100%|############################################################################| 3/3 [03:57<00:00, 79.09s/it]
+Downloads starting soon.. 23 downloads to go
+100%|############################################################################| 23/23 [03:57<00:00, 79.09s/it]
 
 ```
 
@@ -33,7 +51,8 @@ Downloads starting soon.. 3 downloads to go
 
 ## Module
 ```
-s = NRK.search("lille jack", strict=True)[0]
+nrk = NRK()
+s = nrk.search("lille jack", strict=True)[0]
 for e in s.episodes():
     e.download()
 

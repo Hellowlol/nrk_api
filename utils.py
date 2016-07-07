@@ -144,7 +144,7 @@ def _console_select(l, print_args=None):
 
         else:
             # Normally a dict
-            x = [c_out(stuff.get(k)) for k in print_args if stuff.get(k)]
+            x = [c_out(stuff.get(k, '')) for k in print_args if stuff.get(k)]
             x.insert(0, '{0:>3}:'.format(i))
             print(' '.join(x))
 
