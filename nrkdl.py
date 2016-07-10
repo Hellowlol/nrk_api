@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-
 import locale
 import logging
 import os
@@ -12,7 +11,7 @@ import sys
 from io import StringIO
 from multiprocessing.dummy import Pool as ThreadPool
 
-from utils import compat_input, clean_name, _console_select
+from utils import _console_select, clean_name, compat_input
 
 import requests
 import tqdm
@@ -46,8 +45,6 @@ SAVE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads'
 APICALLS = 0
 logging.basicConfig(level=logging.DEBUG)
 
-
-
 try:
     os.makedirs(SAVE_PATH)
 except OSError as e:
@@ -70,8 +67,8 @@ def get_encoding(gui=False):
 # Feels very dirty
 ENCODING = get_encoding()
 
-# fix me
-def c_out(s, encoding=ENCODING):
+
+def c_out(s, encoding=ENCODING):  # fix me
     if not PY3:
         return s.encode(encoding, 'ignore')
     else:
@@ -95,7 +92,7 @@ def get_media_url(media_id):
         could use this response to populate the class as it
         yields more info
     """
-    #print('get_media_url called %s media_id' % media_id)
+    #  print('get_media_url called %s media_id' % media_id)
     try:
         response = _fetch('programs/%s' % media_id)
         return response.get('mediaUrl', '')
@@ -152,7 +149,10 @@ class NRK(object):
                  save_path=SAVE_PATH,
                  subtitle=False,
                  cli=False,
-                 gui=False):
+                 gui=False,
+                 chunks=1,
+                 *args,
+                 **kwargs):
 
         self.dry_run = dry_run
         self.workers = workers
@@ -160,6 +160,7 @@ class NRK(object):
         self.save_path = save_path
         self.subs = subtitle
         self.cli = cli
+        self.chunks = chunks
 
         if encoding is None:
             self.encoding = get_encoding(gui=gui)
@@ -198,6 +199,7 @@ class NRK(object):
 
         o, e = process.communicate()
         process.stdin.close()
+        print(e)
         return 1
 
     def _download_all(self, items):
@@ -212,7 +214,7 @@ class NRK(object):
             self.workers = len(items)
 
         pool = ThreadPool(self.workers)
-        chunks = 1  # TODO
+        chunks = self.chunks  # TODO
         # 1 ffmpeg is normally 10x- 20x * 2500kbits ish
         # so depending on how many items you download and
         # your bandwidth you might need to tweak chunk
@@ -294,7 +296,7 @@ class NRK(object):
         series = []
         total = 0
         for category in _fetch('categories'):
-            if category.get('categoryId') != 'all-programs': # useless shit...
+            if category.get('categoryId') != 'all-programs':  # useless shit...
                 cat = _fetch('categories/%s/programs' % category.get('categoryId'))
                 for i in cat:
                     if i.get('seriesId', '').strip() != '':
@@ -388,9 +390,8 @@ class NRK(object):
         return [_build(item) for item in
                 _fetch('categories/%s/recommendedprograms' % category_id)]
 
-    @staticmethod
-    def downloads():
-        return Downloader()
+    def downloads(self):
+        return Downloader(self)
 
     def _from_file(self, f):
         try:
@@ -527,19 +528,19 @@ class Media(object):
         self.type = data.get('type', None)
         self.id = data.get('id', None)
         self.available = data.get('isAvailable', False)
-        self.file_name = self._filename()
-        self.file_path = os.path.join(SAVE_PATH, clean_name(self.name), self.file_name)
 
         if self.data.get('episodeNumberOrDate'):
             self.full_title = '%s %s' % (self.name, self._fix_sn(self.data.get('seasonId'), season_ids=kwargs.get('seasonIds')))
         else:
             self.full_title = self.title
 
+        self.file_name = self._filename()
+        self.file_path = os.path.join(SAVE_PATH, clean_name(self.name), self.file_name)
+
     def _filename(self):
         name = clean_name(self.name)
         if self.data.get('episodeNumberOrDate'):
             name += ' %s' % self._fix_sn(self.data.get('seasonId'))
-            # remove stuff that ffmpeg could complain about
         return name
 
     def _fix_sn(self, season_number=None, season_ids=None):
@@ -547,11 +548,12 @@ class Media(object):
         stuff = season_ids or self.data.get('series', {}).get('seasonIds')
 
         try:
-            for d in stuff:
-                sn = d['name'].replace('Sesong ', '')
-                lookup[str(d['id'])] = 'S%sE%s' % (sn.zfill(2), self.data.get('episodeNumberOrDate').split(':')[0].zfill(2))
+            if stuff:
+                for d in stuff:
+                    sn = d.get('name', '').replace('Sesong ', '')
+                    lookup[str(d['id'])] = 'S%sE%s' % (sn.zfill(2), self.data.get('episodeNumberOrDate', '').split(':')[0].zfill(2))
 
-            return lookup[str(self.data.get('seasonId'))]
+                return lookup[str(self.data.get('seasonId'))]
         except Exception as e:
             return self.data.get('episodeNumberOrDate')
 
@@ -591,7 +593,7 @@ class Media(object):
         fp = os.path.join(path, clean_name(self.name), self.full_title)
         q = 'high'  # fix me
         t = (url, q, fp)
-        Downloader().add((url, q, fp))
+        Downloader(self).add((url, q, fp))
         return t
 
     def __eq__(self, other):
@@ -612,15 +614,13 @@ class Media(object):
 class Episode(Media):
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
-        self.season_number = kwargs.get('season_number') or data.get('seasonId')
+        self.season_number = kwargs.get('season_number') or data.get('seasonId')  # fixme
         self.ep_name = data.get('episodeNumberOrDate', '')
         self.category = Category(data.get('category') if 'category' in data else None)
         self.id = data.get('programId')
         self.type = 'episode'
         # Because of https://tvapi.nrk.no/v1/programs/MSUS27001913 has no title
         self.name = data.get('series', {}).get('title', '') or data.get('title')
-        # So it can be parsed from both /series and /program and /search
-        self.full_title = '%s %s' % (self.name, self._fix_sn(self.season_number, season_ids=kwargs.get('seasonIds')))
 
 
 class Season(Media):
@@ -707,17 +707,19 @@ class Channel(Media):
 class Downloader(object):
     files_to_download = []
 
-    def __len__(cls):
-        return len(cls.files_to_download)
+    def __init__(self, nrk):
+        self.nrk = nrk
+
+    def __len__(self):
+        return len(self.files_to_download)
 
     @classmethod
     def add(cls, media):
         cls.files_to_download.append(media)
 
-    @classmethod
-    def start(cls):
-        print('Downloads starting soon.. %s downloads to go' % len(cls.files_to_download))
-        return NRK()._download_all(cls.files_to_download)
+    def start(self):
+        print('Downloads starting soon.. %s downloads to go' % len(self.files_to_download))
+        return self.nrk._download_all(self.files_to_download)
 
     @classmethod
     def clear(cls):
@@ -779,7 +781,6 @@ class Subtitle(object):
                                 headers={"Referer": "https://translate.google.com/"}
                                 )
         return response.text
-
 
     @classmethod
     def add(cls):  # pragma: no cover
@@ -882,6 +883,9 @@ def main():
     parser.add_argument('-if', '--input_file', default=False,
                         required=False, help='Download to this folder')
 
+    parser.add_argument('-c', '--chunks', default=False,
+                        required=False, help='')
+
     # parser.add_argument('-t', '--translate', action='store_true', default=False,
     #                    required=False, help='Translate')
 
@@ -907,6 +911,9 @@ def main():
     if p.encoding:
         kw['encoding'] = p.encoding
 
+    if p.chunks:
+        kw['chunks'] = p.chunks
+
     nrk = NRK(**kw)
 
     if p.input_file:
@@ -916,10 +923,10 @@ def main():
         nrk.parse_url(p.url)
 
     elif p.search:
-        c = nrk._console(p.search)
+        nrk._console(p.search)
 
     elif p.browse:
-        c = nrk._browse()
+        nrk._browse()
 
 
 if __name__ == '__main__':  # pragma: no cover
