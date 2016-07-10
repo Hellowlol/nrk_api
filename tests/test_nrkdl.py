@@ -38,37 +38,39 @@ def q_clear():
             try:
                 func(*args, **kwargs)
             finally:
-                NRK.downloads().clear()
+                nrk.downloads().clear()
         return inner
     return outer
 
 
 def test_search_live():
-    r = NRK.search('Kash og Zook')
+    r = nrk.search('Kash og Zook')
     assert r[0].name == 'Kash og Zook'
 
 
 def test_program_live():
-    r = NRK.program('MSUS27001913')
+    r = nrk.program('MSUS27001913')
     assert r[0].full_title == 'Kash og Zook S01E11'
 
 
 @q_clear()
 @mock.patch('os.makedirs')
 def test_download_live(*args):
-    r = NRK.program('MSUS27001913')
+    r = nrk.program('MSUS27001913')
 
     url, q, fp = r[0].download()  # add test for path
     folder, f = [basename(x) for x in split(fp)]
+    print(fp)
     assert url == 'http://nordond19b-f.akamaihd.net/i/wo/open/ec/ecbdad2e3fa4e5762e093c873ea2e3dd93529952/2fea3fe8-4c40-4ab9-9e60-3e52766c8e00_,563,1266,2250,.mp4.csmil/master.m3u8'
     assert q == 'high'
     assert f == 'Kash og Zook S01E11'
     assert folder == 'Kash og Zook'
-    assert len(NRK.downloads()) == 1
+    assert len(nrk.downloads()) == 1
 
 
 def test_series_live():
     r = NRK.series('kash-og-zook')
+    print(r[0].name)
     assert r[0].name == 'Kash og Zook'
 
 
@@ -196,7 +198,8 @@ def test_if_ffmpeg_is_installed_static():
 
 # test_seasons_live()
 # test_parse_url_live()
-# test_download_live()
+#test_download_live()
+test_series_live()
 # test_program_static()
 # test_download_live()
 #test_from_file_static()
@@ -208,3 +211,4 @@ def test_if_ffmpeg_is_installed_static():
 # test_subtitle_from_episode_from_static()
 # test_seasons_live()
 # test_channels_live()
+#test_download_live()

@@ -2,13 +2,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-import requests
-import os
-from os.path import dirname, abspath, join
 from json import load, loads
 import logging
-import sys
+import os
+from os.path import dirname, abspath, join
 import re
+import subprocess
+import sys
+
+import requests
+
 
 c_dir = dirname(abspath(__file__))
 
@@ -161,3 +164,7 @@ def _console_select(l, print_args=None):
         l = [l]
 
     return l
+
+
+def is_ffmpeg_installed():
+    return True if subprocess.check_call('ffmpeg -h', shell=False) == 0 else False

@@ -448,10 +448,12 @@ class NRK(object):
                     id = sr['hit']['seriesId']
 
                     show = _fetch('series/%s' % id)
+                    print(show['title'])
 
                     # if we select a show, we should be able to choose all eps.
                     if 'programs' in show:
-                        all_stuff = [Episode(e, seasonIds=show['seasonIds']) for e in show['programs'] if e['isAvailable']]
+                        # Fix me, try to search for kash an it returns the wrong title.
+                        all_stuff = [Episode(e, name=show['title'], seasonIds=show['seasonIds']) for e in show['programs'] if e['isAvailable']]
 
                     # Allow selection of episodes
                     all_eps = _console_select(all_stuff, ['full_title'])
@@ -620,7 +622,9 @@ class Episode(Media):
         self.id = data.get('programId')
         self.type = 'episode'
         # Because of https://tvapi.nrk.no/v1/programs/MSUS27001913 has no title
-        self.name = data.get('series', {}).get('title', '') or data.get('title')
+        # Prefer name as kwargs,
+        self.name = kwargs.get('name') or data.get('series', {}).get('title', '') or data.get('title')
+        self.full_title = '%s %s' % (self.name, self._fix_sn(self.season_number, season_ids=kwargs.get('seasonIds')))
 
 
 class Season(Media):
