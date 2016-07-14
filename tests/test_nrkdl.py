@@ -63,7 +63,7 @@ def test_download_live(*args):
     print(fp)
     assert url == 'http://nordond19b-f.akamaihd.net/i/wo/open/ec/ecbdad2e3fa4e5762e093c873ea2e3dd93529952/2fea3fe8-4c40-4ab9-9e60-3e52766c8e00_,563,1266,2250,.mp4.csmil/master.m3u8'
     assert q == 'high'
-    assert f == 'Kash og Zook S01E11'
+    assert f == 'Kash.og.Zook.S01E11.WEBDL-nrkdl'
     assert folder == 'Kash og Zook'
     assert len(nrk.downloads()) == 1
 
@@ -188,7 +188,8 @@ def test_build_static(item):
     assert serie.type == 'serie'
 
 def test_subtitle_from_episode_from_live():
-    assert getsize(nrkdl.Subtitle().get_subtitles('MYNT15001216', 'skam', 'skam 12:12')) > 0
+    show = nrk.program('MSUB19120616')[0]
+    assert getsize(show.subtitle()) > 0
 
 
 def test_if_ffmpeg_is_installed_static():
@@ -198,11 +199,11 @@ def test_if_ffmpeg_is_installed_static():
 
 # test_seasons_live()
 # test_parse_url_live()
-#test_download_live()
-test_series_live()
+# test_download_live()
+# test_series_live()
 # test_program_static()
 # test_download_live()
-#test_from_file_static()
+# test_from_file_static()
 # test_console_select_static()
 # test_console_live()
 # test_browse_live()
@@ -211,4 +212,4 @@ test_series_live()
 # test_subtitle_from_episode_from_static()
 # test_seasons_live()
 # test_channels_live()
-#test_download_live()
+# test_download_live()

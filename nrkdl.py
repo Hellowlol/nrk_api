@@ -522,13 +522,15 @@ class NRK(object):
 
 
 class Media(object):
+    """ Base class for all the media elements """
+
     def __init__(self, data, *args, **kwargs):
         self.data = data
         self.name = data.get('name', '') or data.get('title', '')
         self.name = self.name.strip()
         self.title = data.get('title')
-        self.type = data.get('type', None)
-        self.id = data.get('id', None)
+        self.type = data.get('type')
+        self.id = data.get('id')
         self.available = data.get('isAvailable', False)
 
         if self.data.get('episodeNumberOrDate'):
@@ -541,8 +543,13 @@ class Media(object):
 
     def _filename(self):
         name = clean_name(self.name)
+        # Remove duplicated spaces since trash could be removed from clean_name
+        name = ' '.join(name.split())
         if self.data.get('episodeNumberOrDate'):
-            name += ' %s' % self._fix_sn(self.data.get('seasonId'))
+            name += '.%s' % self._fix_sn(self.data.get('seasonId'))
+
+        name = name.replace(' ', '.') + '.WEBDL-nrkdl'
+
         return name
 
     def _fix_sn(self, season_number=None, season_ids=None):
@@ -565,7 +572,7 @@ class Media(object):
 
     def subtitle(self):
         """ download a subtitle """
-        return Subtitle().get_subtitles(self.id, name=self.name, file_name=self.full_title)
+        return Subtitle().get_subtitles(self.id, name=self.name, file_name=self.file_name)
 
     def media_url(self):
         """ Allow mediaurl to be created manually """
@@ -583,16 +590,16 @@ class Media(object):
         if path is None:
             path = SAVE_PATH
 
-        name = clean_name(self.name)
+        folder = clean_name(self.name)
 
         try:
             # Make sure the show folder exists
-            os.makedirs(os.path.join(path, name))
+            os.makedirs(os.path.join(path, folder))
         except OSError as e:
-            if not os.path.isdir(os.path.join(path, name)):
+            if not os.path.isdir(os.path.join(path, folder)):
                 raise
 
-        fp = os.path.join(path, clean_name(self.name), self.full_title)
+        fp = os.path.join(path, folder, self.file_name)
         q = 'high'  # fix me
         t = (url, q, fp)
         Downloader(self).add((url, q, fp))
@@ -625,6 +632,8 @@ class Episode(Media):
         # Prefer name as kwargs,
         self.name = kwargs.get('name') or data.get('series', {}).get('title', '') or data.get('title')
         self.full_title = '%s %s' % (self.name, self._fix_sn(self.season_number, season_ids=kwargs.get('seasonIds')))
+        # Fix for shows like zoom og kash
+        self.file_name = self._filename()
 
 
 class Season(Media):
@@ -647,6 +656,8 @@ class Season(Media):
 
 
 class Program(Media):
+    """ Program is the media element of movies etc """
+
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
         self.type = 'program'
@@ -667,11 +678,13 @@ class Series(Media):
         self.name = data['title'].strip()
         self.description = data.get('description', '')
         self.legal_age = data.get('legalAge') or data.get('aldersgrense')
-        self.image_id = data.get('seriesImageId', data.get('imageId', None))
+        self.image_id = data.get('seriesImageId', data.get('imageId'))
         self.available = data.get('isAvailable', False)
         self.category = Category(data.get('category') if 'category' in data else None)
 
     def seasons(self):
+        """Returns a list of sorted list of seasons """
+
         all_seasons = []  # the lowest seasonnumer in a show in the first season
         # If there isnt a seasons its from /serie/
         sea = self.data.get('seasons') or self.data.get('seasonIds')
@@ -734,9 +747,15 @@ class Downloader(object):
 class Category(Media):
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
-        self.id = data.get('categoryId', None)
-        self.name = data.get('displayValue', None)
-        self.title = data.get('displayValue', None)
+        self.id = data.get('categoryId')
+        self.name = data.get('displayValue')
+        self.title = data.get('displayValue')
+
+
+class Audio(Media):
+    def __init__(self, data, *args, **kwargs):
+        super(self.__class__, self).__init__(data, *args, **kwargs)
+        pass  # todo
 
 
 class Subtitle(object):
@@ -798,12 +817,12 @@ class Subtitle(object):
     def start(cls):  # pragma: no cover
         pass  # TODO
 
-    @classmethod
-    def _time_to_str(cls, time):
+    @staticmethod
+    def _time_to_str(time):
         return '%02d:%02d:%02d,%03d' % (time / 3600, (time % 3600) / 60, time % 60, (time % 1) * 1000)
 
-    @classmethod
-    def _str_to_time(cls, txt):
+    @staticmethod
+    def _str_to_time(txt):
         p = txt.split(':')
         try:
             ms = float(p[2])
@@ -851,7 +870,7 @@ class Subtitle(object):
         return output.getvalue()
 
 
-def main():
+def main(): # pragma: no cover
     import argparse
 
     parser = argparse.ArgumentParser()
