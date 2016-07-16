@@ -210,7 +210,7 @@ class NRK(object):
         """
 
         # Don't start more workers then 1:1
-        if self.workers < len(items):
+        if self.workers > len(items):
             self.workers = len(items)
 
         pool = ThreadPool(self.workers)
@@ -538,7 +538,7 @@ class Media(object):
         else:
             self.full_title = self.title
 
-        self.file_name = self._filename()
+        self.file_name = self._filename(self.full_title)
         self.file_path = os.path.join(SAVE_PATH, clean_name(self.name), self.file_name)
 
     def _filename(self, name=None):
@@ -553,12 +553,11 @@ class Media(object):
         stuff = season_ids or self.data.get('series', {}).get('seasonIds')
 
         try:
-            if stuff:
-                for d in stuff:
-                    sn = d.get('name', '').replace('Sesong ', '')
-                    lookup[str(d['id'])] = 'S%sE%s' % (sn.zfill(2), self.data.get('episodeNumberOrDate', '').split(':')[0].zfill(2))
+            for d in stuff:
+                sn = d.get('name', '').replace('Sesong ', '')
+                lookup[str(d['id'])] = 'S%sE%s' % (sn.zfill(2), self.data.get('episodeNumberOrDate', '').split(':')[0].zfill(2))
 
-                return lookup[str(self.data.get('seasonId'))]
+            return lookup[str(self.data.get('seasonId'))]
         except Exception as e:
             return self.data.get('episodeNumberOrDate', '')
 
@@ -629,7 +628,7 @@ class Episode(Media):
         self.name = kwargs.get('name') or data.get('series', {}).get('title', '') or data.get('title')
         self.full_title = '%s %s' % (self.name, self._fix_sn(self.season_number, season_ids=kwargs.get('seasonIds')))
         # Fix for shows like zoom og kash
-        self.file_name = self._filename()
+        self.file_name = self._filename(self.full_title)
 
 
 class Season(Media):

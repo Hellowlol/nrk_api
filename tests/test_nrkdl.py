@@ -7,7 +7,7 @@ import subprocess
 import sys
 from os.path import abspath, basename, dirname, getsize, split
 
-sys.path.append(dirname(dirname(abspath(__file__))))
+sys.path.insert(0, dirname(dirname(abspath(__file__))))
 
 from nrkdl import NRK
 import nrkdl
@@ -15,7 +15,7 @@ from utils import ppatch
 
 
 # We dont want to download ANY files
-nrk = NRK(dry_run=True, encoding='utf-8')
+nrk = NRK(dry_run=True, encoding='utf-8', workers=100)
 
 if sys.version_info >= (3, 0):
     PY3 = True
@@ -60,7 +60,6 @@ def test_download_live(*args):
 
     url, q, fp = r[0].download()  # add test for path
     folder, f = [basename(x) for x in split(fp)]
-    print(fp)
     assert url == 'http://nordond19b-f.akamaihd.net/i/wo/open/ec/ecbdad2e3fa4e5762e093c873ea2e3dd93529952/2fea3fe8-4c40-4ab9-9e60-3e52766c8e00_,563,1266,2250,.mp4.csmil/master.m3u8'
     assert q == 'high'
     assert f == 'Kash.og.Zook.S01E11.WEBDL-nrkdl'
@@ -70,7 +69,6 @@ def test_download_live(*args):
 
 def test_series_live():
     r = NRK.series('kash-og-zook')
-    print(r[0].name)
     assert r[0].name == 'Kash og Zook'
 
 
