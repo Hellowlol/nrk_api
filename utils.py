@@ -2,13 +2,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+from functools import wraps
 from json import load, loads
 import logging
 import os
 from os.path import dirname, abspath, join
 import re
-import subprocess
 import sys
+import time
+
 
 import requests
 
@@ -82,6 +84,7 @@ def make_responses():
             print('Updated the response of %s' % k)
         except Exception as e:
             print(e)
+
 
 def timeme(func):
     @wraps(func)
@@ -166,5 +169,25 @@ def _console_select(l, print_args=None):
     return l
 
 
-def is_ffmpeg_installed():
-    return True if subprocess.check_call('ffmpeg -h', shell=False) == 0 else False
+def which(program):
+    # http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
+    def is_exe(fpath):
+        return os.path.exists(fpath) and os.access(fpath, os.X_OK)
+
+    def ext_candidates(fpath):
+        yield fpath
+        for ext in os.environ.get("PATHEXT", "").split(os.pathsep):
+            yield fpath + ext
+
+    fpath, fname = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            exe_file = os.path.join(path, program)
+            for candidate in ext_candidates(exe_file):
+                if is_exe(candidate):
+                    return candidate
+
+    return None

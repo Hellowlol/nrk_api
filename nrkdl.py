@@ -11,7 +11,7 @@ import sys
 from io import StringIO
 from multiprocessing.dummy import Pool as ThreadPool
 
-from utils import _console_select, clean_name, compat_input
+from utils import _console_select, clean_name, compat_input, which
 
 import requests
 import tqdm
@@ -552,9 +552,15 @@ class Media(object):
         lookup = {}
         stuff = season_ids or self.data.get('series', {}).get('seasonIds')
 
+        # check that episodeNumberOrDate isnt a date...
+        # (\d+:\d+) # 01:31
+        #
+
+
         try:
             for d in stuff:
                 sn = d.get('name', '').replace('Sesong ', '')
+
                 lookup[str(d['id'])] = 'S%sE%s' % (sn.zfill(2), self.data.get('episodeNumberOrDate', '').split(':')[0].zfill(2))
 
             return lookup[str(self.data.get('seasonId'))]
@@ -948,4 +954,7 @@ def main(): # pragma: no cover
 
 
 if __name__ == '__main__':  # pragma: no cover
+    #if which('ffmpeg') is None:
+    #    print('ffmpeg is not installed')
+    #    sys.exit(0)
     main()
