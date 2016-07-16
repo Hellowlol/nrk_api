@@ -541,15 +541,11 @@ class Media(object):
         self.file_name = self._filename()
         self.file_path = os.path.join(SAVE_PATH, clean_name(self.name), self.file_name)
 
-    def _filename(self):
-        name = clean_name(self.name)
+    def _filename(self, name=None):
+        name = clean_name('%s' % name or self.full_title)
         # Remove duplicated spaces since trash could be removed from clean_name
         name = ' '.join(name.split())
-        if self.data.get('episodeNumberOrDate'):
-            name += '.%s' % self._fix_sn(self.data.get('seasonId'))
-
         name = name.replace(' ', '.') + '.WEBDL-nrkdl'
-
         return name
 
     def _fix_sn(self, season_number=None, season_ids=None):
@@ -564,7 +560,7 @@ class Media(object):
 
                 return lookup[str(self.data.get('seasonId'))]
         except Exception as e:
-            return self.data.get('episodeNumberOrDate')
+            return self.data.get('episodeNumberOrDate', '')
 
     def as_dict(self):
         """ raw response """
