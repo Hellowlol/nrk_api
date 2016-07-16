@@ -11,7 +11,7 @@ import sys
 from io import StringIO
 from multiprocessing.dummy import Pool as ThreadPool
 
-from utils import _console_select, clean_name, compat_input
+from utils import _console_select, clean_name, compat_input, which
 
 import requests
 import tqdm
@@ -948,4 +948,7 @@ def main(): # pragma: no cover
 
 
 if __name__ == '__main__':  # pragma: no cover
+    #if which('ffmpeg') is None:
+    #    print('ffmpeg is not installed')
+    #    sys.exit(0)
     main()
