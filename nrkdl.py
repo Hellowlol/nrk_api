@@ -552,10 +552,10 @@ class Media(object):
         lookup = {}
         stuff = season_ids or self.data.get('series', {}).get('seasonIds')
 
-        # check that episodeNumberOrDate isnt a date...
-        # (\d+:\d+) # 01:31
-        #
-
+        # Since shows can have a date..
+        not_date = re.search('(\d+:\d+)', self.data.get('episodeNumberOrDate', ''))
+        if not_date is None:
+            return self.data.get('episodeNumberOrDate', '')
 
         try:
             for d in stuff:
@@ -564,6 +564,7 @@ class Media(object):
                 lookup[str(d['id'])] = 'S%sE%s' % (sn.zfill(2), self.data.get('episodeNumberOrDate', '').split(':')[0].zfill(2))
 
             return lookup[str(self.data.get('seasonId'))]
+
         except Exception as e:
             return self.data.get('episodeNumberOrDate', '')
 
