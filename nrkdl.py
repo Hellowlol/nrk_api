@@ -199,7 +199,7 @@ class NRK(object):
 
         o, e = process.communicate()
         process.stdin.close()
-        print(e)
+
         return 1
 
     def _download_all(self, items):
@@ -532,6 +532,7 @@ class Media(object):
         self.type = data.get('type')
         self.id = data.get('id')
         self.available = data.get('isAvailable', False)
+        self._image_url = "http://m.nrk.no/m/img?kaleidoId=%s&width=%d"
 
         if self.data.get('episodeNumberOrDate'):
             self.full_title = '%s %s' % (self.name, self._fix_sn(self.data.get('seasonId'), season_ids=kwargs.get('seasonIds')))
@@ -540,6 +541,15 @@ class Media(object):
 
         self.file_name = self._filename(self.full_title)
         self.file_path = os.path.join(SAVE_PATH, clean_name(self.name), self.file_name)
+        self._image_id = data.get('imageId') or kwargs.get('imageId')
+
+    @property
+    def thumb(self):
+        return self._image_url % (self._image_id, 500) if self._image_id else None
+
+    @property
+    def fanart(self):
+        return self._image_url % (self._image_id, 1920) if self._image_id else None
 
     def _filename(self, name=None):
         name = clean_name('%s' % name or self.full_title)

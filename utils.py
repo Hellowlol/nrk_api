@@ -175,7 +175,6 @@ def which(program):
         return os.path.exists(fpath) and os.access(fpath, os.X_OK)
 
     def ext_candidates(fpath):
-        yield fpath
         for ext in os.environ.get("PATHEXT", "").split(os.pathsep):
             yield fpath + ext
 
