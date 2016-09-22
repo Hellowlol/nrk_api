@@ -146,7 +146,7 @@ class NRK(object):
                  encoding=None,
                  workers=4,
                  verbose=False,
-                 save_path=SAVE_PATH,
+                 save_path=None,
                  subtitle=False,
                  cli=False,
                  gui=False,
@@ -157,10 +157,17 @@ class NRK(object):
         self.dry_run = dry_run
         self.workers = workers
         self.verbose = verbose
-        self.save_path = save_path
         self.subs = subtitle
         self.cli = cli
         self.chunks = chunks
+
+        # Allow override # fix me
+        global SAVE_PATH
+        if save_path is None:
+            self.save_path = SAVE_PATH
+        else:
+            SAVE_PATH = save_path
+            self.save_path = save_path
 
         if encoding is None:
             self.encoding = get_encoding(gui=gui)
