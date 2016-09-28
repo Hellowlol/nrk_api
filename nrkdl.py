@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+from datetime import datetime
 import locale
 import logging
 import os
@@ -78,6 +79,7 @@ def c_out(s, encoding=ENCODING):  # fix me
 def _fetch(path, **kwargs):
     global APICALLS
     APICALLS += 1
+    #print(APICALLS, path)
     try:
         r = session.get(API_URL + path, **kwargs)
         r.raise_for_status()
@@ -528,6 +530,59 @@ class NRK(object):
             return []
 
 
+    def expires_at(self, date=None, category=None, media_type=None):
+        is_range = False
+        if date is None:
+            date = datetime.now().date()
+        elif '-' in date:
+            old, new = date.replace(' ', '').split('-')
+            old = datetime.strptime(old, '%d.%m.%Y')
+            new = datetime.strptime(new, '%d.%m.%Y')
+            is_range = True
+
+        else:
+            date = datetime.strptime(date, '%d.%m.%Y').date()
+
+        self.save_path = str(date)
+
+        expires_soon = []
+
+        all_programs = self.site_rip()
+
+        for media in all_programs:
+            if media.type == 'serie' and media_type is None or media_type == 'serie':
+                for ep in media.episodes():
+                    if category and category != ep.category.name:
+                        continue
+
+                    if is_range:
+                        if old <= ep.available_to <= new:
+                            expires_soon.append(ep)
+
+                    elif ep.available_to.date() == date:
+                        expires_soon.append(ep)
+            else:
+                if category and category != media.category.name:
+                    continue
+
+                if media_type and media_type != media.type:
+                    continue
+
+                if is_range:
+                    if old <= media.available_to <= new:
+                        expires_soon.append(media)
+                elif media.available_to.date() == date:
+                    expires_soon.append(media)
+
+        if expires_soon:
+            print('Expires today')
+            eps = _console_select(expires_soon, ['full_title'])
+            ip = compat_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
+            if ip == 'y':
+                [m.download() for m in eps]
+                self.downloads().start()
+
+
 class Media(object):
     """ Base class for all the media elements """
 
@@ -553,6 +608,15 @@ class Media(object):
     @property
     def thumb(self):
         return self._image_url % (self._image_id, 500) if self._image_id else None
+
+    @property
+    def available_to(self):
+        try:
+            r = datetime.fromtimestamp(int(self.data.get('usageRights', {}).get('availableTo', 0) / 1000), None)
+        except (ValueError, OSError, OverflowError):
+            r = datetime.fromtimestamp(0)
+
+        return r
 
     @property
     def fanart(self):
@@ -593,6 +657,7 @@ class Media(object):
         """ download a subtitle """
         return Subtitle().get_subtitles(self.id, name=self.name, file_name=self.file_name)
 
+    @property
     def media_url(self):
         """ Allow mediaurl to be created manually """
         return get_media_url(self.id if self.type != 'serie' else self.data.get('programId'))
@@ -602,7 +667,7 @@ class Media(object):
             #print('Cant download %s' % c_ount(self.name))
             return
 
-        url = self.media_url()
+        url = self.media_url
         if url is None:
             return
 
@@ -670,7 +735,7 @@ class Season(Media):
 
     def episodes(self):
         return [Episode(d, season_number=self.season_number) for d in
-                _fetch('series/%s' % self.series_id)['programs']
+                _fetch('series/%s' % self.series_id).get('programs', [])
                 if self.id == d.get('seasonId')]
 
 
@@ -700,6 +765,7 @@ class Series(Media):
         self.image_id = data.get('seriesImageId', data.get('imageId'))
         self.available = data.get('isAvailable', False)
         self.category = Category(data.get('category') if 'category' in data else None)
+        self.season_ids = self.data.get('seasons', []) or self.data.get('seasonIds', [])
 
     def seasons(self):
         """Returns a list of sorted list of seasons """
@@ -721,7 +787,11 @@ class Series(Media):
         return all_seasons
 
     def episodes(self):
-        return [Episode(d) for d in _fetch('series/%s' % self.id)['programs']]
+        eps = _fetch('series/%s' % self.id)
+        if 'programs' in eps:
+            return [Episode(d, seasonIds=self.data.get('seasonIds', [])) for d in _fetch('series/%s' % self.id)['programs']]
+        else:
+            return []
 
 
 class Channel(Media):
@@ -900,6 +970,9 @@ def main(): # pragma: no cover
     parser.add_argument('-e', '--encoding', default=None,
                         required=False, help='Set encoding')
 
+    parser.add_argument('-ex', '--expires_at', default=None,
+                        required=False, help='Set encoding')
+
     parser.add_argument('-u', '--url', default=False,
                         required=False, help='"url1 url2 url3"')
 
@@ -969,6 +1042,9 @@ def main(): # pragma: no cover
 
     elif p.browse:
         nrk._browse()
+
+    elif p.expires_at:
+        nrk.expires_at(p.expires_at)
 
 
 if __name__ == '__main__':  # pragma: no cover
