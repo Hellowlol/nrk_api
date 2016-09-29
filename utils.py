@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import datetime
 from functools import wraps
 from json import load, loads
 import logging
@@ -10,7 +11,6 @@ from os.path import dirname, abspath, join
 import re
 import sys
 import time
-
 
 import requests
 
@@ -22,6 +22,34 @@ if sys.version_info >= (3, 0):
     xrange = range
 else:
     PY3 = False
+
+
+def parse_datestring(s):
+    """Convert a string to datetime
+
+    "1-01-2016-13-07-2015"
+
+    Returns:
+        (datetime.datetime(2015, 7, 13, 23, 59), datetime.datetime(2016, 1, 1, 23, 59))
+
+
+    """
+
+    r = r'(\d{1,2}).(\d{1,2}).(\d{2,4})'
+
+    res = re.findall(r, s)
+
+    def real(t):
+        d, m, y = t
+        year = int(y)
+        if len(y) == 2:
+            y = int('20%s' % year) if year <= 30 else int('19%s' % year)
+        return datetime.datetime(day=int(d), month=int(m), year=int(y), hour=23, minute=59)
+
+    if len(res) == 2:
+        return tuple(sorted((real(z) for z in res)))
+    else:
+        return real(res[0]), None
 
 
 def ppatch(ff=None):
@@ -48,6 +76,13 @@ def ppatch(ff=None):
             return function(j, *args, **kwargs)
         return inner
     return outer
+
+#@ppatch('C:\Users\admin\Documents\GitHub\nrkdl\responses\search_lille_jack.json')
+#@ppatch('C:\Users\admin\Desktop\search_lille_jack.json')
+def test(data, *args, **kwargs):
+    print(data)
+
+#test()
 
 
 def make_responses():
@@ -95,13 +130,6 @@ def timeme(func):
         return res
     return inner
 
-#@ppatch('C:\Users\admin\Documents\GitHub\nrkdl\responses\search_lille_jack.json')
-#@ppatch('C:\Users\admin\Desktop\search_lille_jack.json')
-def test(data, *args, **kwargs):
-    print(data)
-
-#test()
-
 
 def c_out(s, encoding='latin-1'):
     if not PY3:
@@ -118,7 +146,9 @@ def compat_input(s=''):
 
 
 def clean_name(s):
+    """ remove all illegal chars for ffmpeg"""
     s = re.sub(r'[-/\\\?%\*|"<>]', '', s).replace(':', '_')
+    s = ' '.join(s.split()).strip()
     return s
 
 

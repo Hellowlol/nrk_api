@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import datetime
 import mock
 import subprocess
 import sys
@@ -11,7 +12,7 @@ sys.path.insert(0, dirname(dirname(abspath(__file__))))
 
 from nrkdl import NRK
 import nrkdl
-from utils import ppatch
+from utils import ppatch, parse_datestring, which
 
 
 # We dont want to download ANY files
@@ -81,14 +82,14 @@ def test_categories_live():
 
 
 def test_programs_live():
-    # r = NRK.programs()
+    r = NRK.programs()
+    for ff in r:
+        print(ff.name.encode('utf-8'))
     pass
-
 
 def test_site_rip_live():
     # r = NRK.site_rip()
     pass
-
 
 @q_clear()
 @mock.patch('os.makedirs')
@@ -185,16 +186,49 @@ def test_build_static(item):
     serie = nrkdl._build(item)
     assert serie.type == 'serie'
 
+
 def test_subtitle_from_episode_from_live():
     show = nrk.program('MSUB19120616')[0]
     assert getsize(show.subtitle()) > 0
 
 
 def test_if_ffmpeg_is_installed_static():
-    pass
-    #assert subprocess.check_call('ffmpeg -h', shell=False) == 0
+    assert which('ffmpeg') is not None
 
 
+def test_utils_parse_datestring():
+    single_dot = parse_datestring('01.01.1970')
+    assert single_dot == (datetime.datetime(1970, 1, 1, 23, 59), None)
+
+    single_dash = parse_datestring('01-01-1970')
+    assert single_dash == (datetime.datetime(1970, 1, 1, 23, 59), None)
+
+    ans_range = (datetime.datetime(1970, 1, 1, 23, 59), datetime.datetime(1970, 5, 1, 23, 59))
+    range_dot = parse_datestring('01.01.1970 - 01.05.1970')
+    assert range_dot == ans_range
+
+    range_dash = parse_datestring('01.05.1970 01-01-1970')
+    assert range_dash == ans_range
+
+    assert parse_datestring('01.05.1970.0101-1970') == ans_range
+
+
+
+
+
+
+
+
+
+if __name__ == '__main__':
+    pass#test_programs_live()
+    #test_program_static()
+    #test_console_select_static()
+    # test_console_live()
+    #test_program_static()
+    #test_from_file_static()
+    #test_utils_parse_datestring()
+    #test_if_ffmpeg_is_installed_static()
 # test_seasons_live()
 # test_parse_url_live()
 # test_download_live()
@@ -202,8 +236,7 @@ def test_if_ffmpeg_is_installed_static():
 # test_program_static()
 # test_download_live()
 # test_from_file_static()
-# test_console_select_static()
-# test_console_live()
+
 # test_browse_live()
 # test_console_select_static()
 # test_build_static()

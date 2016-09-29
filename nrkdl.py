@@ -12,8 +12,10 @@ import sys
 from io import StringIO
 from multiprocessing.dummy import Pool as ThreadPool
 
-from utils import _console_select, clean_name, compat_input, which
+from utils import _console_select, clean_name, compat_input, which, parse_datestring
 
+from cachecontrol import CacheControl
+from cachecontrol.caches import FileCache
 import requests
 import tqdm
 
@@ -36,13 +38,17 @@ except ImportError as e:
     from urllib.parse import quote_plus as qp
 
 API_URL = 'https://tvapi.nrk.no/v1/'
+SAVE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads')
 
 session = requests.Session()
 session.headers['app-version-android'] = '999'
 session.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36'
 
+#cached_session = CacheControl(session,
+#                              cache=FileCache(os.path.join(SAVE_PATH, '.webcache')))
+
 # Try to set some sane defaults
-SAVE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads')
+
 APICALLS = 0
 logging.basicConfig(level=logging.DEBUG)
 
@@ -55,6 +61,7 @@ except OSError as e:
 # Disable log spam
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("cachecontrol").setLevel(logging.WARNING)
 
 
 def get_encoding(gui=False):
@@ -76,17 +83,23 @@ def c_out(s, encoding=ENCODING):  # fix me
         return s
 
 
-def _fetch(path, **kwargs):
-    global APICALLS
-    APICALLS += 1
-    #print(APICALLS, path)
+def _fetch(path, cache=False, **kwargs):  # fix me
+    # global APICALLS
+    # APICALLS += 1
+    #print('fetch %s' % path)
     try:
+        """
+        if cache:
+            r = cached_session.get(API_URL + path, **kwargs)
+        else:
+            r = session.get(API_URL + path, **kwargs)
+        """
         r = session.get(API_URL + path, **kwargs)
         r.raise_for_status()
         return r.json()
     except Exception as e:
         logging.exception('Failed to %s %s' % (path, e))
-        return []
+        return {}
 
 
 def get_media_url(media_id):
@@ -105,17 +118,17 @@ def get_media_url(media_id):
 
 def _build(item):
     """ Helper function that returns the correct class """
+    if item is not None:
+        hit_type = item.get('type')
+        if hit_type is not None:
+            item = item.get('hit')
 
-    hit_type = item.get('type')
-    if hit_type is not None:
-        item = item.get('hit')
-
-    if hit_type == 'serie' or item.get('seriesId', '').strip():
-        return Series(item)
-    elif hit_type == 'episode':
-        return Episode(item)
-    else:
-        return Program(item)
+        if hit_type == 'serie' or item.get('seriesId', '').strip():
+            return Series(item)
+        elif hit_type == 'episode':
+            return Episode(item)
+        else:
+            return Program(item)
 
 
 def parse_uri(urls):
@@ -217,9 +230,8 @@ class NRK(object):
            Example: [(url, quality, file_path)]
 
         """
-
         # Don't start more workers then 1:1
-        if self.workers > len(items):
+        if self.workers >= len(items):
             self.workers = len(items)
 
         pool = ThreadPool(self.workers)
@@ -288,10 +300,6 @@ class NRK(object):
     @staticmethod
     def series(series_id):
         return [Series(_fetch('series/%s' % series_id))]
-
-    @staticmethod
-    def recent_programs(category_id='all-programs'):
-        return [_build(data) for data in _fetch('categories/%s/recentlysentprograms' % category_id)]
 
     @staticmethod
     def channels():
@@ -390,14 +398,35 @@ class NRK(object):
         return [Category(item) for item in _fetch('categories/')]
 
     @staticmethod
-    def popular_programs(category_id='all-programs'):  # fixme
-        return [_build(item) for item in
-                _fetch('categories/%s/popularprograms' % category_id)]
+    def recent_programs(category_id='all-programs'):
+        r = []
+        for item in _fetch('categories/%s/recentlysentprograms' % category_id):
+            obj = _fetch('programs/%s' % item.get('programId'))
+            if obj:
+                r.append(_build(obj))
+
+        return r
+
+    @staticmethod
+    def popular_programs(category_id='all-programs'):
+        r = []
+        for item in _fetch('categories/%s/popularprograms' % category_id):
+            obj = _fetch('programs/%s' % item.get('programId'))
+            if obj:
+                r.append(_build(obj))
+
+        return r
 
     @staticmethod
     def recommended_programs(category_id='all-programs'):
-        return [_build(item) for item in
-                _fetch('categories/%s/recommendedprograms' % category_id)]
+        """ We need to call programs since the title is wrong in recommendedprograms"""
+        r = []
+        for item in _fetch('categories/%s/recommendedprograms' % category_id):
+            obj = _fetch('programs/%s' % item.get('programId'))
+            if obj:
+                r.append(_build(obj))
+
+        return r
 
     def downloads(self):
         return Downloader(self)
@@ -529,21 +558,14 @@ class NRK(object):
         else:
             return []
 
-
     def expires_at(self, date=None, category=None, media_type=None):
-        is_range = False
+        new = None
         if date is None:
             date = datetime.now().date()
-        elif '-' in date:
-            old, new = date.replace(' ', '').split('-')
-            old = datetime.strptime(old, '%d.%m.%Y')
-            new = datetime.strptime(new, '%d.%m.%Y')
-            is_range = True
-
         else:
-            date = datetime.strptime(date, '%d.%m.%Y').date()
-
-        self.save_path = str(date)
+            old, new = parse_datestring(date)
+            if new is None:
+                date = old.date()
 
         expires_soon = []
 
@@ -555,11 +577,13 @@ class NRK(object):
                     if category and category != ep.category.name:
                         continue
 
-                    if is_range:
-                        if old <= ep.available_to <= new:
+                    if new:
+                        # We need to check ep is available because
+                        # it still be available_to but we cant download it..
+                        if old <= ep.available_to <= new and ep.available:
                             expires_soon.append(ep)
 
-                    elif ep.available_to.date() == date:
+                    elif ep.available_to.date() == date and ep.available:
                         expires_soon.append(ep)
             else:
                 if category and category != media.category.name:
@@ -568,18 +592,18 @@ class NRK(object):
                 if media_type and media_type != media.type:
                     continue
 
-                if is_range:
-                    if old <= media.available_to <= new:
+                if new:
+                    if old <= media.available_to <= new and media.available:
                         expires_soon.append(media)
-                elif media.available_to.date() == date:
+                elif media.available_to.date() == date and media.available:
                     expires_soon.append(media)
 
         if expires_soon:
-            print('Expires today')
+            print('%s expires today' % len(expires_soon))
             eps = _console_select(expires_soon, ['full_title'])
+            [m.download(os.path.join(self.save_path, str(date))) for m in eps]
             ip = compat_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
             if ip == 'y':
-                [m.download() for m in eps]
                 self.downloads().start()
 
 
@@ -590,7 +614,7 @@ class Media(object):
         self.data = data
         self.name = data.get('name', '') or data.get('title', '')
         self.name = self.name.strip()
-        self.title = data.get('title')
+        self.title = data.get('title', '')
         self.type = data.get('type')
         self.id = data.get('id')
         self.available = data.get('isAvailable', False)
@@ -624,8 +648,6 @@ class Media(object):
 
     def _filename(self, name=None):
         name = clean_name('%s' % name or self.full_title)
-        # Remove duplicated spaces since trash could be removed from clean_name
-        name = ' '.join(name.split())
         name = name.replace(' ', '.') + '.WEBDL-nrkdl'
         return name
 
@@ -634,6 +656,7 @@ class Media(object):
         stuff = season_ids or self.data.get('series', {}).get('seasonIds')
 
         # Since shows can have a date..
+        # dateregex (\d+\.\s\w+\s\d+)
         not_date = re.search('(\d+:\d+)', self.data.get('episodeNumberOrDate', ''))
         if not_date is None:
             return self.data.get('episodeNumberOrDate', '')
@@ -646,7 +669,7 @@ class Media(object):
 
             return lookup[str(self.data.get('seasonId'))]
 
-        except Exception as e:
+        except:
             return self.data.get('episodeNumberOrDate', '')
 
     def as_dict(self):
@@ -664,7 +687,7 @@ class Media(object):
 
     def download(self, path=None):
         if self.available is False:
-            #print('Cant download %s' % c_ount(self.name))
+            # print('Cant download %s' % c_ount(self.name))
             return
 
         url = self.media_url
@@ -735,7 +758,7 @@ class Season(Media):
 
     def episodes(self):
         return [Episode(d, season_number=self.season_number) for d in
-                _fetch('series/%s' % self.series_id).get('programs', [])
+                _fetch('series/%s' % self.series_id)['programs']
                 if self.id == d.get('seasonId')]
 
 
@@ -971,6 +994,9 @@ def main(): # pragma: no cover
                         required=False, help='Set encoding')
 
     parser.add_argument('-ex', '--expires_at', default=None,
+                        required=False, help='Download in all between todays date and 01.01.2020 or just 01-01-2020')
+
+    parser.add_argument('-ce', '--cache', default=None,
                         required=False, help='Set encoding')
 
     parser.add_argument('-u', '--url', default=False,
