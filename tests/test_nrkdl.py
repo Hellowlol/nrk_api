@@ -213,6 +213,22 @@ def test_utils_parse_datestring():
     assert parse_datestring('01.05.1970.0101-1970') == ans_range
 
 
+@q_clear()
+@mock.patch('os.makedirs')
+def test_expires_at(f, *args):
+    n = NRK(dry_run=True)
+
+    today = datetime.datetime.now()
+    d_today = today.strftime('%d.%m.%Y')
+    f_day = datetime.timedelta(weeks=4 * 3)
+    fut = today + f_day
+    ds = '%s-%s' % (d_today, fut.strftime('%d.%m.%Y'))
+
+    with mock.patch(ips, side_effect=['::', 'y']):
+        n.expires_at(ds)
+        assert len(n.downloads())
+
+
 
 
 
@@ -221,7 +237,8 @@ def test_utils_parse_datestring():
 
 
 if __name__ == '__main__':
-    pass#test_programs_live()
+    test_expires_at()
+    #test_programs_live()
     #test_program_static()
     #test_console_select_static()
     # test_console_live()

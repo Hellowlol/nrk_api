@@ -812,7 +812,7 @@ class Series(Media):
     def episodes(self):
         eps = _fetch('series/%s' % self.id)
         if 'programs' in eps:
-            return [Episode(d, seasonIds=self.data.get('seasonIds', [])) for d in _fetch('series/%s' % self.id)['programs']]
+            return [Episode(d, seasonIds=self.data.get('seasonIds', [])) for d in _fetch('series/%s' % self.id).get('programs', [])]
         else:
             return []
 
