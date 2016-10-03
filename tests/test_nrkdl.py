@@ -237,7 +237,8 @@ def test_expires_at(f, *args):
 
 
 if __name__ == '__main__':
-    test_expires_at()
+    pass
+    #test_expires_at()
     #test_programs_live()
     #test_program_static()
     #test_console_select_static()
