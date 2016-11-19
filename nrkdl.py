@@ -12,7 +12,7 @@ import sys
 from io import StringIO
 from multiprocessing.dummy import Pool as ThreadPool
 
-from utils import _console_select, clean_name, compat_input, which, parse_datestring
+from utils import _console_select, clean_name, compat_input, which, parse_datestring, parse_skole
 
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
@@ -30,7 +30,6 @@ if sys.version_info >= (3, 0):
     xrange = range
 else:
     PY3 = False
-
 
 try:
     from urllib import quote_plus as qp
@@ -142,6 +141,8 @@ def parse_uri(urls):
                 programid = u[5]
             elif t == 'program':
                 programid = u[4]
+            elif t == 'skole':
+                programid = parse_skole(s)
 
             if programid:
                 obs.append(programid)
@@ -767,13 +768,17 @@ class Program(Media):
 
     def __init__(self, data, *args, **kwargs):
         super(self.__class__, self).__init__(data, *args, **kwargs)
+        self.data = data
         self.type = 'program'
         self.__dict__.update(data)
         self.programid = data.get('programId')
         self.id = data.get('programId')
         self.description = data.get('description', '')
         self.available = data.get('isAvailable', False)
-        self.category = Category(data.get('category') if 'category' in data else None)
+        if 'category' in data:
+            self.category = Category(data.get('category'))
+        else:
+            self.category = None
 
 
 class Series(Media):

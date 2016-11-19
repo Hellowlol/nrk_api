@@ -219,4 +219,18 @@ def which(program):
                 if is_exe(candidate):
                     return candidate
 
-    return None
+
+def parse_skole(url):
+    # stolen from youtube dl
+    obj = re.match(r'https?://(?:www\.)?nrk\.no/skole/?\?.*\bmediaId=(?P<id>\d+)', url)
+
+    if obj:
+        r = requests.get('https://mimir.nrk.no/plugin/1.0/static?mediaId=%s' % obj.group('id'))
+        media_id = re.search(r'<script[^>]+type=["\']application/json["\'][^>]*>({.+?})</script>', r.text)
+
+    try:
+        real_id = loads(media_id.groups()[0])['activeMedia']['psId']
+        return real_id
+
+    except Exception as e:
+        pass
