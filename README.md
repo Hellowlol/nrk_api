@@ -66,6 +66,15 @@ all_downloads.start()
 ```
 See example and source file for more examples
 
+# Why should you use this library?
+- Easy to download entire shows
+- Browsing features
+- Fixes up tvshows fucked up naming so it can be parsed by kodi/plex/emby
+- Pretty fast, maxes my 500 mbit connection.
+
 ## Similar tools
 - [If you need a gui](https://bitbucket.org/snippsat/wx_nrk "snippsats wx_nrk")
 - [Other cli tool](https://github.com/kvolden/nrk_download "nrk_download")
+- [nrk written in php](https://github.com/AndKe/nrk)
+- [nrk-tv-downloader written in bash](https://github.com/odinuge/nrk-tv-downloader)
+- Use the search there is loads of nrk options.
