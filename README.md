@@ -66,7 +66,7 @@ all_downloads.start()
 ```
 See example and source file for more examples
 
-# Why should you use this library?
+## Why should you use this library?
 - Easy to download entire shows
 - Browsing features
 - Fixes up tvshows fucked up naming so it can be parsed by kodi/plex/emby
