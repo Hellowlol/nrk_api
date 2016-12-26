@@ -171,11 +171,11 @@ class NRK(object):
                  **kwargs):
 
         self.dry_run = dry_run
-        self.workers = workers
+        self.workers = int(workers)
         self.verbose = verbose
         self.subs = subtitle
         self.cli = cli
-        self.chunks = chunks
+        self.chunks = int(chunks)
 
         # Allow override # fix me
         global SAVE_PATH
@@ -1043,7 +1043,7 @@ def main(): # pragma: no cover
         kw['dry_run'] = p.dry_run
 
     if p.workers:
-        kw['workers'] = int(p.workers)
+        kw['workers'] = p.workers
 
     if p.save_path:
         kw['save_path'] = p.save_path
