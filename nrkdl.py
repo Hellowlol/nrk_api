@@ -85,7 +85,6 @@ def c_out(s, encoding=ENCODING):  # fix me
 def _fetch(path, cache=False, **kwargs):  # fix me
     # global APICALLS
     # APICALLS += 1
-    #print('fetch %s' % path)
     try:
         """
         if cache:
@@ -122,7 +121,7 @@ def _build(item):
         if hit_type is not None:
             item = item.get('hit')
 
-        if hit_type == 'serie' or item.get('seriesId', '').strip():
+        if hit_type == 'serie' or item.get('seriesId') is not None and item.get('seriesId', '').strip():
             return Series(item)
         elif hit_type == 'episode':
             return Episode(item)
@@ -137,10 +136,15 @@ def parse_uri(urls):
         programid = None
         try:
             t = u[3]
+
             if t == 'serie':
                 programid = u[5]
             elif t == 'program':
                 programid = u[4]
+            # Old style.
+            elif 'PS*' in s:
+                programid = u[4][3:]
+
             elif t == 'skole':
                 programid = parse_skole(s)
 
@@ -376,8 +380,15 @@ class NRK(object):
                 meta = dict((k, v) for k, v in meta_tags if len(v))
                 if meta.get('programid'):
                     p_ids.append(meta.get('programid'))
+
                 else:
-                    logging.debug('The url has no programid')
+                    old_style = re.findall(r'data-video-id=\"(\d+)\"', html)
+                    if old_style:
+                        # If you want something other then the figure you better pass
+                        # a url with the damn id.. or use search. We assume figure is first
+                        p_ids.append(old_style[0])
+                    else:
+                        logging.debug('The %s has no programid' % s)
 
         if p_ids:
             p_ids = set(p_ids)
@@ -487,7 +498,7 @@ class NRK(object):
                     id = sr['hit']['seriesId']
 
                     show = _fetch('series/%s' % id)
-                    print(show['title'])
+                    #print(show['title'])
 
                     # if we select a show, we should be able to choose all eps.
                     if 'programs' in show:
@@ -620,7 +631,6 @@ class Media(object):
         self.id = data.get('id')
         self.available = data.get('isAvailable', False)
         self._image_url = "http://m.nrk.no/m/img?kaleidoId=%s&width=%d"
-
         if self.data.get('episodeNumberOrDate'):
             self.full_title = '%s %s' % (self.name, self._fix_sn(self.data.get('seasonId'), season_ids=kwargs.get('seasonIds')))
         else:
@@ -774,7 +784,7 @@ class Program(Media):
         self.programid = data.get('programId')
         self.id = data.get('programId')
         self.description = data.get('description', '')
-        self.available = data.get('isAvailable', False)
+        self.available = data.get('isAvailable', False) or not data.get('usageRights', {}).get('hasNoRights', False)
         if 'category' in data:
             self.category = Category(data.get('category'))
         else:
