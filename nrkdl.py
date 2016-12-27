@@ -65,14 +65,15 @@ logging.getLogger("cachecontrol").setLevel(logging.WARNING)
 
 def get_encoding(gui=False):
     try:
-        if not gui:
+        if gui is False:
+            print('damn locale')
             locale.setlocale(locale.LC_ALL, "")
         return locale.getpreferredencoding()
     except (locale.Error, IOError):
         return 'utf-8'
 
 # Feels very dirty
-ENCODING = get_encoding()
+ENCODING = get_encoding(gui=True) # Incase we uses gui.py-
 
 
 def c_out(s, encoding=ENCODING):  # fix me

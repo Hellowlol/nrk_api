@@ -1,23 +1,32 @@
+import os
+import sys
 from gooey import Gooey, GooeyParser
 from nrkdl import NRK
+
+
+nonbuffered_stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+sys.stdout = nonbuffered_stdout
+
 
 """
 See https://github.com/chriskiehl/Gooey#installation-instructions
 This gui does only work with py2
 
-You also need to comment out L55 in nrkdl.py
 """
 
 
 @Gooey(monospace_display=True,
        advanced=True,
+       default_size=(900, 600),
        program_description='Download tvshows/movies from NRK/Super')
 def main():
 
+    NRK = NRK(gui=True)
+
     parser = GooeyParser()
 
-    parser.add_argument('-u', '--url', default=False,
-                        required=False, help='"url1 url2 url3"')
+    parser.add_argument('-u', '--url', action='store', default=False,
+                        required=False, widget='TextField', help='"url1 url2 url3"')
 
     parser.add_argument('-e', '--encoding', default='latin-1',
                         required=False, help='Set encoding')
