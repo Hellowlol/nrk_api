@@ -992,7 +992,7 @@ class Subtitle(object):
             output.write(u'%s' % (i + 1))
             output.write(u'\n%s' % cls._time_to_str(start))
             output.write(u' --> %s\n' % cls._time_to_str(end))
-            output.write(text)
+            output.write(u'%s' % text)
             output.write(u'\n\n')
 
         return output.getvalue()
