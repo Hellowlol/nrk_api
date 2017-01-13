@@ -51,11 +51,6 @@ session.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKi
 APICALLS = 0
 logging.basicConfig(level=logging.DEBUG)
 
-try:
-    os.makedirs(SAVE_PATH)
-except OSError as e:
-    if not os.path.isdir(SAVE_PATH):
-        raise
 
 # Disable log spam
 logging.getLogger('requests').setLevel(logging.WARNING)
@@ -66,7 +61,6 @@ logging.getLogger("cachecontrol").setLevel(logging.WARNING)
 def get_encoding(gui=False):
     try:
         if gui is False:
-            print('damn locale')
             locale.setlocale(locale.LC_ALL, "")
         return locale.getpreferredencoding()
     except (locale.Error, IOError):
@@ -172,6 +166,7 @@ class NRK(object):
                  cli=False,
                  gui=False,
                  chunks=1,
+                 include_description=False,
                  *args,
                  **kwargs):
 
@@ -181,6 +176,7 @@ class NRK(object):
         self.subs = subtitle
         self.cli = cli
         self.chunks = int(chunks)
+        self.include_description = include_description
 
         # Allow override # fix me
         global SAVE_PATH
@@ -189,7 +185,13 @@ class NRK(object):
         else:
             SAVE_PATH = save_path
             self.save_path = save_path
-
+        if not self.dry_run:
+            try:
+                os.makedirs(self.save_path)
+            except OSError as e:
+                if not os.path.isdir(self.save_path):
+                    raise
+        
         if encoding is None:
             self.encoding = get_encoding(gui=gui)
         else:
@@ -473,7 +475,15 @@ class NRK(object):
         else:
             # use reverse since 0 is the closest match and i dont want to scoll
             for i, hit in reversed(list(enumerate(response['hits']))):
-                print('{0:>3}: {1}'.format(i, c_out(hit['hit']['title'])))
+                if 'category' in hit['hit']:
+                    category = c_out(hit['hit']['category']['title'])
+                else:
+                    category = ""
+                print('{0:>3}: {1} [{2}]'.format(i, c_out(hit['hit']['title']), category))
+                if self.include_description:
+                    if 'description' in hit['hit']:
+                        description = c_out(hit['hit']['description'][:110]).replace("\r"," ")
+                        print('     {0}'.format(description))
 
             # If there are more then one result, the user should pick a show
             if len(response['hits']) > 1:
@@ -504,10 +514,15 @@ class NRK(object):
                     # if we select a show, we should be able to choose all eps.
                     if 'programs' in show:
                         # Fix me, try to search for kash an it returns the wrong title.
-                        all_stuff = [Episode(e, name=show['title'], seasonIds=show['seasonIds']) for e in show['programs'] if e['isAvailable']]
+                        all_stuff = [Episode(e, name=show['title'], seasonIds=show['seasonIds']) 
+                                     for e in show['programs'] if e['isAvailable']]
 
                     # Allow selection of episodes
-                    all_eps = _console_select(all_stuff, ['full_title'])
+                    if self.include_description:
+                        description_arg = 'description'
+                    else:
+                        description_arg = None
+                    all_eps = _console_select(all_stuff, ['full_title'], encoding=ENCODING, description_arg=description_arg)
                     if not isinstance(all_eps, list):
                         all_eps = [all_eps]
 
@@ -1003,26 +1018,26 @@ def main(): # pragma: no cover
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-s', '--search', default=False,
+    parser.add_argument('-s', '--search', default=False, metavar='keyword', 
                         required=False, help='Search nrk for a show and download files')
 
     parser.add_argument('-e', '--encoding', default=None,
-                        required=False, help='Set encoding')
+                        required=False, help="Set encoding (default=%s)" % ENCODING)
 
-    parser.add_argument('-ex', '--expires_at', default=None,
+    parser.add_argument('-ex', '--expires_at', default=None, metavar='date',
                         required=False, help='Download in all between todays date and 01.01.2020 or just 01-01-2020')
 
-    parser.add_argument('-ce', '--cache', default=None,
-                        required=False, help='Set encoding')
+    # parser.add_argument('-ce', '--cache', default=None,
+    #                     required=False, help='Set encoding')
 
     parser.add_argument('-u', '--url', default=False,
-                        required=False, help='"url1 url2 url3"')
+                        required=False, help='Use NRK URL as sorce. Comma separated e.g. "url1 url2"')
 
     parser.add_argument('-b', '--browse', action='store_true', default=False,
                         required=False, help='Browse')
 
     parser.add_argument('-save', '--save_path', default=False,
-                        required=False, help='Download to this folder')
+                        required=False, help='Download to this folder (default=./downloads)')
 
     parser.add_argument('-dr', '--dry_run', action='store_true', default=False,
                         required=False, help='Dry run, dont download anything')
@@ -1038,10 +1053,13 @@ def main(): # pragma: no cover
                         required=False, help='Download subtitle for this media file?')
 
     parser.add_argument('-if', '--input_file', default=False,
-                        required=False, help='Download to this folder')
+                        required=False, help='Use local file as source')
 
     parser.add_argument('-c', '--chunks', default=False,
                         required=False, help='')
+
+    parser.add_argument('-d', '--description', action='store_true', default=False,
+                        required=False, help='Print verbose program description in lists')
 
     # parser.add_argument('-t', '--translate', action='store_true', default=False,
     #                    required=False, help='Translate')
@@ -1057,7 +1075,7 @@ def main(): # pragma: no cover
         kw['workers'] = p.workers
 
     if p.save_path:
-        kw['save_path'] = p.save_path
+        kw['save_path'] = p.save_path.decode(ENCODING)
 
     if p.verbose:
         kw['verbose'] = p.verbose
@@ -1070,13 +1088,16 @@ def main(): # pragma: no cover
 
     if p.chunks:
         kw['chunks'] = p.chunks
+        
+    if p.description:
+        kw['include_description'] = p.description
 
     nrk = NRK(**kw)
 
     if p.input_file:
         nrk._from_file(p.input_file)
 
-    if p.url:
+    elif p.url:
         nrk.parse_url(p.url)
 
     elif p.search:
@@ -1088,6 +1109,8 @@ def main(): # pragma: no cover
     elif p.expires_at:
         nrk.expires_at(p.expires_at)
 
+    else:
+        parser.print_usage()
 
 if __name__ == '__main__':  # pragma: no cover
     #if which('ffmpeg') is None:
