@@ -172,8 +172,8 @@ def _console_select(l, print_args=None, encoding="UTF-8", description_arg=None):
                 print(' '.join(x))
                 #print ("episode=%s"%stuff.data['description'])
                 if description_arg and not stuff.data is None and not stuff.data[description_arg] is None:
-                    print("     {0}".format(c_out(stuff.data[description_arg])
-                                            .decode('ISO-8859-1').encode(encoding)[:110]))
+                    print("     {0}".format(c_out(stuff.data[description_arg]).decode('ISO-8859-1')
+                                            .encode(encoding)[:110].replace("\r"," ").replace("\n", " ")))
                     
             except Exception as e:
                 print('some crap happend %s' % e)

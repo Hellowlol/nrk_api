@@ -476,13 +476,13 @@ class NRK(object):
             # use reverse since 0 is the closest match and i dont want to scoll
             for i, hit in reversed(list(enumerate(response['hits']))):
                 if 'category' in hit['hit']:
-                    category = c_out(hit['hit']['category']['title'])
+                    category = " [%s]" % c_out(hit['hit']['category']['title'])
                 else:
                     category = ""
-                print('{0:>3}: {1} [{2}]'.format(i, c_out(hit['hit']['title']), category))
+                print('{0:>3}: {1}{2}'.format(i, c_out(hit['hit']['title']), category))
                 if self.include_description:
                     if 'description' in hit['hit']:
-                        description = c_out(hit['hit']['description'][:110]).replace("\r"," ")
+                        description = c_out(hit['hit']['description'][:110]).replace("\r"," ").replace("\n", " ")
                         print('     {0}'.format(description))
 
             # If there are more then one result, the user should pick a show

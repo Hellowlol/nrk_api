@@ -5,11 +5,7 @@ Simple commandline tool to download any/all episodes of a show from nrk/nrk supe
 
 The program has a set of dependencies that must be installed before first use:
  
-    pip install requests
-    pip install cachecontrol
-    pip install lockfile
-    pip install tqdm
-    pip install
+    pip install -r requirements.txt
 
 In addition you will need [`ffmpeg`](https://ffmpeg.org/), e.g. `apt-get install ffmpeg` (Ubuntu), `brew install ffmpeg` (macOs)
 
