@@ -1,6 +1,46 @@
 # nrkdl [![Build Status](https://travis-ci.org/Hellowlol/nrkdl.svg?branch=master)](https://travis-ci.org/Hellowlol/nrkdl)  [![Coverage Status](https://coveralls.io/repos/github/Hellowlol/nrkdl/badge.svg?branch=master)](https://coveralls.io/github/Hellowlol/nrkdl?branch=master) ![Supports python 2.6, 2.7, 3.3, 3.4, 3.5](https://img.shields.io/badge/python-2.6%2C%202.7%2C%203.3%2C%203.4%2C%203.5-brightgreen.svg "Logo Title Text 1")
 Simple commandline tool to download any/all episodes of a show from nrk/nrk super with python.
 
+## Install
+
+The program has a set of dependencies that must be installed before first use:
+ 
+    pip install -r requirements.txt
+
+In addition you will need [`ffmpeg`](https://ffmpeg.org/), e.g. `apt-get install ffmpeg` (Ubuntu), `brew install ffmpeg` (macOs)
+
+## Usage
+
+    $ python nrkdl.py -h
+    usage: nrkdl.py [-h] [-s keyword] [-e ENCODING] [-ex date] [-u URL] [-b]
+                    [-save SAVE_PATH] [-dr] [-v] [-w WORKERS] [-st]
+                    [-if INPUT_FILE] [-c CHUNKS] [-d]
+    
+    optional arguments:
+      -h, --help            show this help message and exit
+      -s keyword, --search keyword
+                            Search nrk for a show and download files
+      -e ENCODING, --encoding ENCODING
+                            Set encoding (default=UTF-8)
+      -ex date, --expires_at date
+                            Download in all between todays date and 01.01.2020 or
+                            just 01-01-2020
+      -u URL, --url URL     Use NRK URL as sorce. Comma separated e.g. "url1 url2"
+      -b, --browse          Browse
+      -save SAVE_PATH, --save_path SAVE_PATH
+                            Download to this folder (default=./downloads)
+      -dr, --dry_run        Dry run, dont download anything
+      -v, --verbose         Show ffmpeg output
+      -w WORKERS, --workers WORKERS
+                            Number of thread pool workers, if your downloading
+                            many items you might have edit the chuck
+      -st, --subtitle       Download subtitle for this media file?
+      -if INPUT_FILE, --input_file INPUT_FILE
+                            Use local file as source
+      -c CHUNKS, --chunks CHUNKS
+      -d, --description     Print verbose program description in lists
+
+
 ## Search
 ```
 > python nrkdl.py -s "brannma"

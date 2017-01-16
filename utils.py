@@ -14,7 +14,6 @@ import time
 
 import requests
 
-
 c_dir = dirname(abspath(__file__))
 
 if sys.version_info >= (3, 0):
@@ -34,9 +33,7 @@ def parse_datestring(s):
 
 
     """
-
     r = r'(\d{1,2}).(\d{1,2}).(\d{2,4})'
-
     res = re.findall(r, s)
 
     def real(t):
@@ -81,9 +78,6 @@ def ppatch(ff=None):
 #@ppatch('C:\Users\admin\Desktop\search_lille_jack.json')
 def test(data, *args, **kwargs):
     print(data)
-
-#test()
-
 
 def make_responses():
     apiurl = 'https://tvapi.nrk.no/v1/'
@@ -131,7 +125,7 @@ def timeme(func):
     return inner
 
 
-def c_out(s, encoding='latin-1'):
+def c_out(s, encoding='utf-8'):
     if not PY3:
         return s.encode(encoding, 'ignore')
     else:
@@ -152,7 +146,7 @@ def clean_name(s):
     return s
 
 
-def _console_select(l, print_args=None):
+def _console_select(l, print_args=None, encoding="UTF-8", description_arg=None):
     """ Helper function to allow grab dicts/objects from list with ints and slice. """
     print('\n')
 
@@ -166,21 +160,23 @@ def _console_select(l, print_args=None):
 
         if not isinstance(stuff, (list, dict, tuple)):  # classes, functions
             try:
-                x = [c_out(getattr(stuff, x)) for x in print_args]
+                x = [c_out(getattr(stuff, x), encoding=encoding) for x in print_args]
                 x.insert(0, '{0:>3}:'.format(i))
                 print(' '.join(x))
+                if description_arg and stuff.data is not None and stuff.data[description_arg] is not None:
+                    print("     {0}".format(c_out(stuff.data[description_arg], encoding=encoding)[:110].replace("\r", " ").replace("\n", " ")))
 
             except Exception as e:
                 print('some crap happend %s' % e)
 
         elif isinstance(stuff, tuple):  # unbound, used to build a menu
-            x = [c_out(stuff[x]) for x in print_args if stuff[x]]
+            x = [c_out(stuff[x], encoding=encoding) for x in print_args if stuff[x]]
             x.insert(0, '{0:>3}:'.format(i))
             print(' '.join(x))
 
         else:
             # Normally a dict
-            x = [c_out(stuff.get(k, '')) for k in print_args if stuff.get(k)]
+            x = [c_out(stuff.get(k, ''), encoding=encoding) for k in print_args if stuff.get(k)]
             x.insert(0, '{0:>3}:'.format(i))
             print(' '.join(x))
 
