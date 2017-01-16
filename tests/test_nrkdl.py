@@ -188,7 +188,7 @@ def test_subtitle_from_episode_from_live():
     show = nrk.program('MSUB19120616')[0]
     assert getsize(show.subtitle()) > 0
 
-
+@pytest.mark.slow
 def test_if_ffmpeg_is_installed_static():
     assert which('ffmpeg') is not None
 
