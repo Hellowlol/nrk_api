@@ -13,6 +13,6 @@ before_install:
 # command to install dependencies
 install: "pip install -r requirements.txt"
 # command to run tests
-script: py.test -v --cov nrkdl.py --cov-report term-missing
+script: py.test -v --cov $TRAVIS_BUILD_DIR/nrkdl.py --cov-report term-missing
 after_success:
     - coveralls
