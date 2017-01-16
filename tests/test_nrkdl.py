@@ -3,16 +3,18 @@
 from __future__ import print_function
 
 import datetime
-import mock
-import subprocess
 import sys
+
 from os.path import abspath, basename, dirname, getsize, split
+
+import mock
+import pytest
 
 sys.path.insert(0, dirname(dirname(abspath(__file__))))
 
 from nrkdl import NRK
 import nrkdl
-from utils import ppatch, parse_datestring, which
+from utils import c_out, parse_datestring, which, ppatch
 
 
 # We dont want to download ANY files
@@ -24,13 +26,6 @@ if sys.version_info >= (3, 0):
 else:
     PY3 = False
     ips = '__builtin__.raw_input'
-
-
-def c_out(s):
-    if not PY3:
-        return s.encode('latin-1', 'ignore')
-    else:
-        return s
 
 
 def q_clear():
@@ -85,11 +80,13 @@ def test_programs_live():
     r = NRK.programs()
     for ff in r:
         print(ff.name.encode('utf-8'))
-    pass
 
+
+@pytest.mark.slow
 def test_site_rip_live():
     # r = NRK.site_rip()
     pass
+
 
 @q_clear()
 @mock.patch('os.makedirs')
@@ -97,7 +94,7 @@ def test_parse_url_live(*args):
     """ tests parsing of the uri and fallbacks to html
         also tests the downloader and clearing the downloader
     """
-    parsed = nrk.parse_url('https://tv.nrk.no/serie/skam') # https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10
+    parsed = nrk.parse_url('https://tv.nrk.no/serie/skam')  # https://tv.nrk.no/serie/skam/MYNT15001016/sesong-2/episode-10
     assert len(parsed) == 1
     assert len(nrk.downloads()) == 1
     # clean q.
@@ -213,6 +210,7 @@ def test_utils_parse_datestring():
     assert parse_datestring('01.05.1970.0101-1970') == ans_range
 
 
+@pytest.mark.slow  # --slow is required for this to run.
 @q_clear()
 @mock.patch('os.makedirs')
 def test_expires_at(f, *args):
@@ -227,38 +225,3 @@ def test_expires_at(f, *args):
     with mock.patch(ips, side_effect=['::', 'y']):
         n.expires_at(ds)
         assert len(n.downloads())
-
-
-
-
-
-
-
-
-
-if __name__ == '__main__':
-    pass
-    #test_expires_at()
-    #test_programs_live()
-    #test_program_static()
-    #test_console_select_static()
-    # test_console_live()
-    #test_program_static()
-    #test_from_file_static()
-    #test_utils_parse_datestring()
-    #test_if_ffmpeg_is_installed_static()
-# test_seasons_live()
-# test_parse_url_live()
-# test_download_live()
-# test_series_live()
-# test_program_static()
-# test_download_live()
-# test_from_file_static()
-
-# test_browse_live()
-# test_console_select_static()
-# test_build_static()
-# test_subtitle_from_episode_from_static()
-# test_seasons_live()
-# test_channels_live()
-# test_download_live()
