@@ -5,12 +5,11 @@ from __future__ import print_function
 import datetime
 import sys
 
-from os.path import abspath, basename, dirname, getsize, split
+from os.path import basename, getsize, split
 
 import mock
 import pytest
 
-sys.path.insert(0, dirname(dirname(abspath(__file__))))
 
 from nrkdl import NRK
 import nrkdl
