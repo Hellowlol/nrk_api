@@ -4,7 +4,7 @@ Simple commandline tool to download any/all episodes of a show from nrk/nrk supe
 ## Install
 
 The program has a set of dependencies that must be installed before first use:
- 
+
     pip install -r requirements.txt
 
 In addition you will need [`ffmpeg`](https://ffmpeg.org/), e.g. `apt-get install ffmpeg` (Ubuntu), `brew install ffmpeg` (macOs)
@@ -15,7 +15,7 @@ In addition you will need [`ffmpeg`](https://ffmpeg.org/), e.g. `apt-get install
     usage: nrkdl.py [-h] [-s keyword] [-e ENCODING] [-ex date] [-u URL] [-b]
                     [-save SAVE_PATH] [-dr] [-v] [-w WORKERS] [-st]
                     [-if INPUT_FILE] [-c CHUNKS] [-d]
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       -s keyword, --search keyword
@@ -105,6 +105,23 @@ all_downloads.start()
 
 ```
 See example and source file for more examples
+
+## Using Docker
+
+To use `nrkdl` in a self-contained docker container, the provieded `Dockerfile` should get you going for a minimalistic install.
+If you want to combine this into a standalone command, something like this will be what you want.
+```sh
+#!/bin/sh
+
+# export DATA="/mnt/multimedia/tmp" # Set if you don't want downloads to go to your ${HOME}/downloads
+cd ${HOME}/Projects/programming/nrkdl  # Path where we can find a checkout of this repository
+docker run -it -v ${DATA:-${HOME}/downloads}:/nrkdl/downloads $(docker build -q .) $*
+
+# Open data-path if we are on osx
+# [[ $? == 0 ]] && ( open ${DATA} )
+```
+
+You can now run it using example `nrkdl -s "brannma"`.
 
 ## Why should you use this library?
 - Easy to download entire shows
