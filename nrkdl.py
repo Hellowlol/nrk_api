@@ -242,9 +242,12 @@ class NRK(object):
             if self.cli:
                 for j in tqdm.tqdm(results, total=len(items)):
                     pass
+
+        except KeyboardInterrupt:
+            pool.terminate()
+
         finally:
             pool.close()
-            pool.join()
 
     @staticmethod
     def search(q, raw=False, strict=False):
@@ -356,30 +359,36 @@ class NRK(object):
 
         # Fallback to parsing html of that url if we didnt find them all
         if not p_ids or len(p_ids) < len(urls):
-            logging.info('Couldnt extract programid/seriesid from the url '
-                         'fallback to parsing the site')
-            # grouped regex for the meta tag
-            regex = re.compile(r'<meta\sname="(.*?)"\scontent="(.*?)"\s/>')
+            logging.debug('Couldnt extract programid/seriesid from the url '
+                         'fallback to parsing the site using regex')
+
+            meta_regex = re.compile(r'<meta\sname="(.*?)"\scontent="(.*?)"\s/>')
+            old_style_regex = re.compile(r'data-video-id=\"(\d+)\"')
+            js_style_regex  = re.compile(r'programId: \"([a-zA-Z]+\d+)\"')
 
             for s in urls:
                 r = requests.get(s)
                 html = r.text
 
-                meta_tags = regex.findall(html)
+                jsr = js_style_regex.findall(html)
 
+                if jsr:
+                    p_ids.append(jsr[0])
+                    continue
+
+                meta_tags = meta_regex.findall(html)
                 # only add it to the dict if the value exist
                 meta = dict((k, v) for k, v in meta_tags if len(v))
                 if meta.get('programid'):
                     p_ids.append(meta.get('programid'))
+                    continue
 
-                else:
-                    old_style = re.findall(r'data-video-id=\"(\d+)\"', html)
-                    if old_style:
-                        # If you want something other then the figure you better pass
-                        # a url with the damn id.. or use search. We assume figure is first
-                        p_ids.append(old_style[0])
-                    else:
-                        logging.debug('The %s has no programid' % s)
+                old_style = old_style_regex.findall(html)
+                if old_style:
+                    p_ids.append(old_style[0])
+                    continue
+
+                logging.debug('The url %s has no programid' % s)
 
         if p_ids:
             p_ids = set(p_ids)
@@ -393,6 +402,7 @@ class NRK(object):
 
         if to_dl:
             self._download_all(to_dl)
+
 
         return to_dl
 
