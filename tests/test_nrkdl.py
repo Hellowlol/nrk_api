@@ -7,11 +7,10 @@ import sys
 
 from os.path import abspath, basename, dirname, getsize, split
 
-sys.path.insert(0, dirname(dirname(abspath(__file__))))
-
 import mock
 import pytest
 
+sys.path.insert(0, dirname(dirname(abspath(__file__))))
 
 from nrkdl import NRK
 import nrkdl
