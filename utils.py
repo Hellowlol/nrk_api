@@ -248,37 +248,6 @@ def to_ms(s=None, des=None, **kwargs):
         return round(result, des)
     return result
 
-def exe(n, *args):
-    #k = 'k' * (n + 1)
-    url = r"http://nordond8c-f.akamaihd.net/i/no/open/7c/7c0b5d2e93d4ad5c6eade80ff049e619933fdfb1/4f20b43f-d07b-41cd-9192-50667da02d54_,141,316,563,1266,2250,.mp4.csmil/master.m3u8?cc1=uri%3Dhttps%3a%2f%2fundertekst.nrk.no%2fprod%2fMYNT15%2f00%2fMYNT15000217AA%2fTMP%2fmaster.m3u8%7Ename%3DNorsk%7Edefault%3Dyes%7Eforced%3Dno%7Elang%3Dnb\n"
-    filename = r'C:\Users\alexa\OneDrive\Dokumenter\GitHub\nrkdl\downloads\skam.s01e01'
-    filename = filename + str(n)
-    q = '' if verbose else '-loglevel quiet '
-    cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv"' % (q, url, filename)
-    start = time.time()
-    process = subprocess.Popen(cmd,
-                               shell=False,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE,
-                               universal_newlines=True)
-
-    durr = None
-    dur_regex = re.compile(r'Duration: (?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.(?P<ms>\d{2})')
-    time_regex = re.compile(r'\stime=(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.(?P<ms>\d{2})')
-    monster = 'frame=\s*?(?P<frame>\d+)\sfps=(?P<fps>\d+)\sq=(?P<q>-\d+.\d+)\ssize=\s+(\d+)kB\stime=(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.(?P<ms>\d{2})\s+bitrate=(?P<bitrate>\d+.\d)kbits\/s\sspeed=\s+(?P<speed>\d+)'
-    progress_line_regex = re.compile(monster)
-    for line in iter(process.stderr):
-
-        if durr is None and dur_regex.search(line):
-            dur = dur_regex.search(line).groupdict()
-            dur = to_ms(**dur)
-
-        result = time_regex.search(line)
-        if result and result.group('hour'):
-            elapsed_time = to_ms(**result.groupdict())
-            yield elapsed_time / dur * 100
-
-    yield 100
 
 def multi_progress_thread(func=None, tasks=None, workers=None):
     """ tqdm nested helper if we dont know the range of the iterable and using treads.
