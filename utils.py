@@ -230,3 +230,158 @@ def parse_skole(url):
 
     except Exception as e:
         pass
+
+def to_ms(s=None, des=None, **kwargs):
+    if s:
+        hour = int(s[0:2])
+        minute = int(s[3:5])
+        sec = int(s[6:8])
+        ms = int(s[10:11])
+    else:
+        hour = int(kwargs.get('hour', 0))
+        minute = int(kwargs.get('min', 0))
+        sec = int(kwargs.get('sec', 0))
+        ms = int(kwargs.get('ms'))
+
+    result = (hour * 60 * 60 * 1000) + (minute * 60 * 1000) + (sec * 1000) + ms
+    if des and isinstance(des, int):
+        return round(result, des)
+    return result
+
+def exe(n, *args):
+    #k = 'k' * (n + 1)
+    url = r"http://nordond8c-f.akamaihd.net/i/no/open/7c/7c0b5d2e93d4ad5c6eade80ff049e619933fdfb1/4f20b43f-d07b-41cd-9192-50667da02d54_,141,316,563,1266,2250,.mp4.csmil/master.m3u8?cc1=uri%3Dhttps%3a%2f%2fundertekst.nrk.no%2fprod%2fMYNT15%2f00%2fMYNT15000217AA%2fTMP%2fmaster.m3u8%7Ename%3DNorsk%7Edefault%3Dyes%7Eforced%3Dno%7Elang%3Dnb\n"
+    filename = r'C:\Users\alexa\OneDrive\Dokumenter\GitHub\nrkdl\downloads\skam.s01e01'
+    filename = filename + str(n)
+    q = '' if verbose else '-loglevel quiet '
+    cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv"' % (q, url, filename)
+    start = time.time()
+    process = subprocess.Popen(cmd,
+                               shell=False,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE,
+                               universal_newlines=True)
+
+    durr = None
+    dur_regex = re.compile(r'Duration: (?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.(?P<ms>\d{2})')
+    time_regex = re.compile(r'\stime=(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.(?P<ms>\d{2})')
+    monster = 'frame=\s*?(?P<frame>\d+)\sfps=(?P<fps>\d+)\sq=(?P<q>-\d+.\d+)\ssize=\s+(\d+)kB\stime=(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.(?P<ms>\d{2})\s+bitrate=(?P<bitrate>\d+.\d)kbits\/s\sspeed=\s+(?P<speed>\d+)'
+    progress_line_regex = re.compile(monster)
+    for line in iter(process.stderr):
+
+        if durr is None and dur_regex.search(line):
+            dur = dur_regex.search(line).groupdict()
+            dur = to_ms(**dur)
+
+        result = time_regex.search(line)
+        if result and result.group('hour'):
+            elapsed_time = to_ms(**result.groupdict())
+            yield elapsed_time / dur * 100
+
+    yield 100
+
+def multi_progress_thread(func=None, tasks=None, workers=None):
+    """ tqdm nested helper if we dont know the range of the iterable and using treads.
+
+        The idea is pretty simple. Each task reports the progress to the queue
+        We read the queue and increment the progress bars.
+
+        tasks (list): of tuples, used as args for func
+        func: Teh function to execute in the threads, func must yield a progress in int
+
+    """
+    from functools import partial
+
+    try:
+        from queue import Queue as queue
+    except ImportError:
+        from Queue import Queue as queue
+
+    import workerpool
+    import tqdm
+
+    class JOBZ(workerpool.Job):
+        def __init__(self, q, task_number, func=None):
+            """Args:
+            q: queue
+            n: tasknumber
+            func: function to execute
+
+            """
+            self.q = q
+            self.n = task_number
+            self.func = func
+
+        def run(self):
+            for i in self.func():
+                self.q.put((self.n, i))
+
+            # Set check done.
+            self.q.put((self.n, 'done'))
+
+    assert callable(func)
+
+    q = queue()
+    len_tasks = len(tasks)
+    pool = workerpool.WorkerPool(size=len_tasks)
+    bars = []
+
+    main_bar = tqdm.tqdm(total=len_tasks, position=0)
+
+    for i, task in enumerate(tasks):
+
+        # Increment the position since we want the
+        # main_bar to be on top.
+        pos = i + 1
+
+        wrap_func = partial(func, task)
+        j = JOBZ(q, i, wrap_func)
+        pool.put(j)
+
+        f = partial(tqdm.tqdm, total=100, position=pos, miniters=1, desc='T %s' % i)
+        bars.append(f())
+
+
+        exit = 0
+        progress = {}
+    while True:
+        try:
+            # Check if we should exit the thread and update the bars
+            if exit == len_tasks:
+
+                # Update sub-bars because of the exit
+                for bb in bars:
+                    bb.n = 0
+                    bb.update(100)
+
+                    # Update main bar.
+                    main_bar.n = 0
+                    main_bar.update(len_tasks)
+                break
+
+            item = q.get()
+
+            if item is not None:
+                t, i = item
+
+                if i == 'done':
+                    exit += 1
+                    continue
+
+                b = bars[t]
+                b.n = 0
+                b.update(i)
+
+                # Add current progress to a dict
+                # since it can only hold the last value
+                progress[str(t)] = i
+
+                main_bar_progress = sum(progress.values()) / 100
+                main_bar.n = 0
+                main_bar.update(main_bar_progress)
+
+        except KeyboardInterrupt:
+            break
+
+    pool.shutdown()
+    pool.join()

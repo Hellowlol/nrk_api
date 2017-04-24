@@ -15,7 +15,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 import requests
 import tqdm
 
-from utils import _console_select, clean_name, compat_input, which, parse_datestring, parse_skole
+from utils import _console_select, clean_name, compat_input, which, parse_datestring, parse_skole, to_ms
 
 
 """
@@ -207,16 +207,36 @@ class NRK(object):
             url = url.encode(self.encoding)
             filename = filename.encode(self.encoding, 'ignore')
 
-        q = '' if self.verbose else '-loglevel quiet '
-        cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv" \n' % (q, url, filename)
-        process = subprocess.Popen(cmd,
-                                   shell=True,
-                                   stdin=subprocess.PIPE,
-                                   stdout=subprocess.PIPE,
-                                   stderr=None)
+        q = '' if self.cli else '-loglevel quiet '
+        cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv"' % (q, url, filename)
 
-        o, e = process.communicate()
-        process.stdin.close()
+        process = subprocess.Popen(cmd,
+                                   shell=False,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE,
+                                   universal_newlines=True)
+
+        if self.cli:
+            durr = None
+            dur_regex = re.compile(r'Duration: (?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.(?P<ms>\d{2})')
+            time_regex = re.compile(r'\stime=(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.(?P<ms>\d{2})')
+            monster = 'frame=\s*?(?P<frame>\d+)\sfps=(?P<fps>\d+)\sq=(?P<q>-\d+.\d+)\ssize=\s+(\d+)kB\stime=(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.(?P<ms>\d{2})\s+bitrate=(?P<bitrate>\d+.\d)kbits\/s\sspeed=\s+(?P<speed>\d+)'
+            progress_line_regex = re.compile(monster)
+            for line in iter(process.stderr):
+
+                if durr is None and dur_regex.search(line):
+                    dur = dur_regex.search(line).groupdict()
+                    dur = to_ms(**dur)
+
+                result = time_regex.search(line)
+                if result and result.group('hour'):
+                    elapsed_time = to_ms(**result.groupdict())
+                    yield elapsed_time / dur * 100
+
+            yield 100
+        else:
+            o, e = process.communicate()
+            process.stdin.close()
 
         return 1
 
@@ -226,28 +246,34 @@ class NRK(object):
            Example: [(url, quality, file_path)]
 
         """
-        # Don't start more workers then 1:1
-        if self.workers >= len(items):
-            self.workers = len(items)
+        if self.cli:
+            from utils import multi_progress_thread
+            return multi_progress_thread(self.dl, items)
+        else:
 
-        pool = ThreadPool(self.workers)
-        chunks = self.chunks  # TODO
-        # 1 ffmpeg is normally 10x- 20x * 2500kbits ish
-        # so depending on how many items you download and
-        # your bandwidth you might need to tweak chunk
+            # Don't start more workers then 1:1
+            if self.workers >= len(items):
+                self.workers = len(items)
 
-        results = pool.imap_unordered(self.dl, items, chunks)
+            pool = ThreadPool(self.workers)
+            chunks = self.chunks  # TODO
+            # 1 ffmpeg is normally 10x- 20x * 2500kbits ish
+            # so depending on how many items you download and
+            # your bandwidth you might need to tweak chunk
 
-        try:
-            if self.cli:
-                for j in tqdm.tqdm(results, total=len(items)):
-                    pass
+            results = pool.imap_unordered(self.dl, items, chunks)
 
-        except KeyboardInterrupt:
-            pool.terminate()
 
-        finally:
-            pool.close()
+            try:
+                if self.cli:
+                    for j in tqdm.tqdm(results, total=len(items)):
+                        pass
+
+            except KeyboardInterrupt:
+                pool.terminate()
+
+            finally:
+                pool.close()
 
     @staticmethod
     def search(q, raw=False, strict=False):
