@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+from __future__ import division, print_function
+
 
 from datetime import datetime
 import locale
@@ -231,14 +232,14 @@ class NRK(object):
                 result = time_regex.search(line)
                 if result and result.group('hour'):
                     elapsed_time = to_ms(**result.groupdict())
-                    yield elapsed_time / dur * 100
+                    yield round(elapsed_time / dur * 100, 2)
 
-            yield 100
+            yield 100.0
         else:
             o, e = process.communicate()
             process.stdin.close()
 
-        return 1
+            yield 1
 
     def _download_all(self, items):
         """Async download of the files.
@@ -246,14 +247,14 @@ class NRK(object):
            Example: [(url, quality, file_path)]
 
         """
+        # Don't start more workers then 1:1
+        if self.workers >= len(items):
+            self.workers = len(items)
+
         if self.cli:
             from utils import multi_progress_thread
-            return multi_progress_thread(self.dl, items)
+            return multi_progress_thread(self.dl, items, self.workers)
         else:
-
-            # Don't start more workers then 1:1
-            if self.workers >= len(items):
-                self.workers = len(items)
 
             pool = ThreadPool(self.workers)
             chunks = self.chunks  # TODO
@@ -262,7 +263,6 @@ class NRK(object):
             # your bandwidth you might need to tweak chunk
 
             results = pool.imap_unordered(self.dl, items, chunks)
-
 
             try:
                 if self.cli:
@@ -902,7 +902,7 @@ class Downloader(object):
         cls.files_to_download.append(media)
 
     def start(self):
-        print('Downloads starting soon.. %s downloads to go' % len(self.files_to_download))
+        print('Downloads starting soon.. %s downloads to go\n' % len(self.files_to_download))
         return self.nrk._download_all(self.files_to_download)
 
     @classmethod
@@ -1076,8 +1076,8 @@ def main():  # pragma: no cover
     parser.add_argument('-if', '--input_file', default=False,
                         required=False, help='Use local file as source')
 
-    parser.add_argument('-c', '--chunks', default=False,
-                        required=False, help='')
+    #parser.add_argument('-c', '--chunks', default=False,
+    #                    required=False, help='')
 
     parser.add_argument('-d', '--description', action='store_true', default=False,
                         required=False, help='Print verbose program description in lists')
@@ -1107,8 +1107,8 @@ def main():  # pragma: no cover
     if p.encoding:
         kw['encoding'] = p.encoding
 
-    if p.chunks:
-        kw['chunks'] = p.chunks
+    #if p.chunks:
+    #    kw['chunks'] = p.chunks
 
     if p.description:
         kw['include_description'] = p.description

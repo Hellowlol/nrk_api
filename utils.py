@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+from __future__ import division, print_function
 
 import datetime
 from functools import wraps
@@ -292,10 +292,17 @@ def multi_progress_thread(func=None, tasks=None, workers=None):
 
     q = queue()
     len_tasks = len(tasks)
-    pool = workerpool.WorkerPool(size=len_tasks)
-    bars = []
+    if workers is None:
+        workers = len_tasks
 
-    main_bar = tqdm.tqdm(total=len_tasks, position=0)
+    pool = workerpool.WorkerPool(size=workers)
+    bars = []
+    bar_format = '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]'
+
+    main_bar = tqdm.tqdm(total=len_tasks, position=0,
+                         mininterval=0.02, dynamic_ncols=True,
+                         smoothing=1, desc='Total',
+                         bar_format=bar_format)
 
     for i, task in enumerate(tasks):
 
@@ -306,13 +313,16 @@ def multi_progress_thread(func=None, tasks=None, workers=None):
         wrap_func = partial(func, task)
         j = JOBZ(q, i, wrap_func)
         pool.put(j)
+        dl_name = os.path.basename(task[2])
 
-        f = partial(tqdm.tqdm, total=100, position=pos, miniters=1, desc='T %s' % i)
+        f = partial(tqdm.tqdm, total=100, mininterval=0.02,
+                    position=pos, miniters=1, dynamic_ncols=True,
+                    leave=True, smoothing=1, bar_format=bar_format,
+                    desc='%s' % dl_name)
         bars.append(f())
 
-
-        exit = 0
-        progress = {}
+    exit = 0
+    progress = {}
     while True:
         try:
             # Check if we should exit the thread and update the bars
@@ -320,7 +330,7 @@ def multi_progress_thread(func=None, tasks=None, workers=None):
 
                 # Update sub-bars because of the exit
                 for bb in bars:
-                    bb.n = 0
+                    bb.n = 100
                     bb.update(100)
 
                     # Update main bar.
@@ -329,12 +339,15 @@ def multi_progress_thread(func=None, tasks=None, workers=None):
                 break
 
             item = q.get()
-
             if item is not None:
                 t, i = item
+                #print(i)
 
                 if i == 'done':
                     exit += 1
+                    b = bars[t]
+                    b.n = 100
+                    b.update(100)
                     continue
 
                 b = bars[t]
@@ -345,7 +358,7 @@ def multi_progress_thread(func=None, tasks=None, workers=None):
                 # since it can only hold the last value
                 progress[str(t)] = i
 
-                main_bar_progress = sum(progress.values()) / 100
+                main_bar_progress = round(sum(progress.values()) / 100, 2)
                 main_bar.n = 0
                 main_bar.update(main_bar_progress)
 

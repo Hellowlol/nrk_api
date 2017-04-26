@@ -2,4 +2,4 @@ requests
 tqdm
 docopt
 workerpool
-colorama
+colorama; os.name == 'nt'
