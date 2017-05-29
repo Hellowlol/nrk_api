@@ -1,3 +1,4 @@
+"""
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
@@ -1138,3 +1139,4 @@ if __name__ == '__main__':  # pragma: no cover
     #    print('ffmpeg is not installed')
     #    sys.exit(0)
     main()
+"""
