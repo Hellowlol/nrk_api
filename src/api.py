@@ -1,33 +1,45 @@
+import asyncio
+import datetime
+from asyncio.streams import IncompleteReadError
 import os
+import logging
 import re
 import sys
+
+from functools import partial
 from urllib.parse import quote_plus
 
-#for item in sys.path:
-#    print(item)
 
 
-#import nrkdl
+import io
+
+import tqdm
+
+
 from httpz import httpclient
-from helpers import clean_name
+from helpers import clean_name, parse_uri, to_ms, progress_bars, parse_datestring
+from classes import *
+
+
+import requests
+
+
+LOG = logging.getLogger(__file__)
 
 
 SAVE_PATH = os.path.expanduser('~/nrkdl')
 
+__all__ = ['NRK']
 
-def _build(item, nrk):
-    """ Helper function that returns the correct class """
-    if item is not None:
-        hit_type = item.get('type')
-        if hit_type is not None:
-            item = item.get('hit')
+_build = build # fixme
 
-        if hit_type == 'serie' or item.get('seriesId') is not None and item.get('seriesId', '').strip():
-            return Series(item, nrk=nrk)
-        elif hit_type == 'episode':
-            return Episode(item, nrk=nrk)
-        else:
-            return Program(item, nrk=nrk)
+
+#if sys.platform == 'win32':
+#    loop = asyncio.ProactorEventLoop()
+#    asyncio.set_event_loop(loop)
+
+
+
 
 
 class NRK(object):
@@ -39,7 +51,7 @@ class NRK(object):
                  verbose=False,
                  save_path=None,
                  subtitle=False,
-                 cli=False,
+                 cli=True,
                  include_description=False,
                  *args,
                  **kwargs):
@@ -53,6 +65,7 @@ class NRK(object):
 
         # Set a default ssl path
         self.save_path = save_path or SAVE_PATH
+        self.q = asyncio.Queue()
 
         # Make sure the save_path exist
         os.makedirs(self.save_path, exist_ok=True)
@@ -60,6 +73,19 @@ class NRK(object):
     async def series(self, series_id):
         return Series(await self.client('series/%s' % series_id), nrk=self)
 
+    async def channels(self):
+        return [Channel(data, nrk=self) for data in await self.client('channels/')
+                if data.get('title') != 'alle']
+
+    async def programs(self, category_id='all-programs'):
+        items = await self.client('categories/%s/programs' % category_id)
+        return [_build(item, nrk=self) for item in items
+                if item.get('title', '').strip() != '' and
+                item['programId'] != 'notransmission']
+
+
+    async def auto_complete(self, q):  # fixme finish me
+        return await self.client('autocomplete?query=%s' % q)
 
     async def program(self, program_id):
         """ Get details about a program/series """
@@ -68,7 +94,6 @@ class NRK(object):
             return Episode(item, nrk=self)
         else:
             return Program(item, nrk=self)
-
 
     async def search(self, query, raw=False, strict=False):
         """ Search nrk for stuff
@@ -79,7 +104,7 @@ class NRK(object):
                     If raw is false it will return a Program, Episode or series,
                     else json
         """
-
+        LOG.debug('Searching for %s' % query)
         response = await self.client('search/%s' % quote_plus(query))
         if response:
             if strict:
@@ -93,22 +118,153 @@ class NRK(object):
                 return response
         return []
 
+    def downloads(self):
+        return Downloader(self)
+
+    async def dl(self, item, bar_nr=1):
+        """Downloads a media file
+           ('url', 'high', 'filepath')
+        """
+        url, quality, filename = item
+
+        if self.dry_run:
+            print('Should have downloaded %s because but didnt because of -dry_run\n' % filename)
+            return
+
+        q = '' if self.cli else '-loglevel quiet '
+        cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv"' % (q, url, filename)
+        proc = await asyncio.create_subprocess_shell(cmd, stderr=asyncio.subprocess.PIPE)
+
+        if self.cli:
+            durr = None
+            dur_regex = re.compile(b'Duration: (?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.(?P<ms>\d{2})')
+            time_regex = re.compile(b'\stime=(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.(?P<ms>\d{2})')
+
+            while True:
+                try:
+                    line = await proc.stderr.readuntil(b'\r')
+                except IncompleteReadError:
+                    line = await proc.stderr.readline()
+
+                if line:
+                    line = line.strip()
+
+                    if durr is None and dur_regex.search(line):
+                        dur = dur_regex.search(line).groupdict()
+                        dur = to_ms(**dur)
+
+                    result = time_regex.search(line)
+                    if result and result.group('hour'):
+                        elapsed_time = to_ms(**result.groupdict())
+                        t = round(elapsed_time / dur * 100, 2)
+                        await self.q.put((t, os.path.basename(filename), bar_nr))
+
+                    # This isnt needed since the exception is raised..
+                    if not line:
+                        await self.q.put((100, os.path.basename(filename), bar_nr))
+                        break
+
+    async def _helper_programs(self, program_type, category_id='all-programs'):
+        x = [self.program(item.get('programId')) for item in
+             await self.client('categories/%s/%s' % (category_id, program_type))]
+        return await asyncio.gather(*x)
+
+    async def recent_programs(self, category_id='all-programs'):
+        return await self._helper_programs('recentlysentprograms', category_id=category_id)
+
+    async def popular_programs(self, category_id='all-programs'):
+        return await self._helper_programs('popularprograms', category_id=category_id)
+
+    async def recommended_programs(self, category_id='all-programs'):
+        """ We need to call programs since the title is wrong in recommendedprograms"""
+        return await self._helper_programs('recommendedprograms', category_id=category_id)
+
+    async def categories(self):
+        return [Category(item) for item in await self.client('categories/')]
+
+    async def parse_url(self, urls):
+        """ Parse the urls and download the media item.
+
+            Args:
+                urls(list): ''
+
+        """
+        LOG.debug('Parsing url(s) %s' % (' '.join(urls)))
+
+        regex_list = [re.compile(r'programId: \"([a-zA-Z]+\d+)\"'),
+                      re.compile(r'data-video-id=\"(\d+)\"')]
+
+        all_ids = set()
+        for i, id in enumerate(parse_uri(urls)):
+            if id:
+                all_ids.add(id)
+            else:
+                html = requests.get(urls[i]).text
+
+                for reg in regex_list:
+                    item = reg.findall(html)
+                    if item:
+                        all_ids.add(item[0])
+                        break
+
+        download_list = []
+        for i in all_ids:
+            media = await self.program(i)
+            if self.subs is True:
+                media.subtitle() # fix me
+
+            download_list.append(await media.download())
+
+        if download_list:
+            await self._download_all(download_list)
+
+        return download_list
+
+    async def _download_all(self, to_download, include_progressbar=True, include_sub_bars=True):
+        fut_tasks = []
+        for i, dl in enumerate(to_download):
+            fut = asyncio.ensure_future(self.dl(dl, i))
+
+            fut_tasks.append(fut)
+
+        if include_progressbar:
+            bars = []
+            bar_format = '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]'
+
+            len_tasks = len(to_download)
+
+            main_bar = tqdm.tqdm(total=len_tasks, position=0,
+                                 mininterval=0.02, dynamic_ncols=True,
+                                 smoothing=1, bar_format=bar_format, desc='Total')
+
+            if len_tasks > 1 and include_sub_bars:
+                for ii, task in enumerate(to_download):
+                    bar_pos = ii + 1
+                    filename = os.path.basename(task[2])
+                    sub_bar = partial(tqdm.tqdm, total=100, mininterval=0.02,
+                                      position=bar_pos, miniters=1, dynamic_ncols=True,
+                                      leave=True, smoothing=1, bar_format=bar_format,
+                                      desc='%s' % filename)
+                    bars.append(sub_bar())
+
+            await progress_bars(to_download, self.q, bars, main_bar)
+
+
 
     async def site_rip(self):  # pragma: no cover
         """ Dont run this.. """
+        LOG.debug('Grabbing every video file we can')
         added_ids = []
         program_ids = []
         series_ids = []
         series = []
         programs = []
-        total = 0
         for category in await self.client('categories'):
             await asyncio.sleep(0)
             if category.get('categoryId') != 'all-programs':  # useless shit...
                 cat = await self.client('categories/%s/programs' % category.get('categoryId'))
                 for i in cat:
                     await asyncio.sleep(0)
-                    #print(i)
                     if i.get('seriesId', '').strip() != '':
                         if i.get('seriesId', '') not in added_ids:
                             series_ids.append(i.get('seriesId', ''))
@@ -119,7 +275,7 @@ class NRK(object):
                                 # CRAPS out if json is shit. IDK
                                 pass
                     else:
-
+                        #continue
                         if i.get('programId') not in added_ids:
                             program_ids.append(i.get('programId'))
                             # Note series with the category tegnspraak will
@@ -130,311 +286,68 @@ class NRK(object):
                             except:
                                 # CRAPS out if json is shit. IDK
                                 pass
-        #print(type(programs))
-        print('Found:\n')
 
+        eps = []
 
-        sss = await asyncio.gather(*series)
+        for i in await asyncio.gather(*series):
+            eps += await i.episodes()
         progs = await asyncio.gather(*programs)
+
         #print('%s series' % len(series))
-        for s in sss:
-            eps = await s.episodes()
-            total += len(eps)
-
-        #print('%s episodes' % total)
+        print('Found:\n')
+        print('Series %s' % len(series))
+        print('%s episodes' % len(eps))
         print('%s programs' % len(programs))
-        print('%s media files in total' % (total + len(programs)))
-        return sss + programs
+        print('%s media files in total' % (len(eps) + len(programs)))
+        return eps + progs
 
 
-class Media(object):
-    """ Base class for all the media elements """
-
-    def __init__(self, data, nrk=None, *args, **kwargs):
-        self.data = data
-        self.name = data.get('name', '') or data.get('title', '')
-        self._nrk = nrk or kwargs.get('nrk')
-        self.name = self.name.strip()
-        self.title = data.get('title', '')
-        self.type = data.get('type')
-        self.id = data.get('id')
-        self.available = data.get('isAvailable', False)
-        self._image_url = "http://m.nrk.no/m/img?kaleidoId=%s&width=%d"
-        if self.data.get('episodeNumberOrDate'):
-            self.full_title = '%s %s' % (self.name, self._fix_sn(self.data.get('seasonId'),
-                                                                 season_ids=kwargs.get('seasonIds')))
+    async def expires_at(self, date=None, category=None, media_type=None):
+        new = None
+        if date is None:
+            date = datetime.datetime.now().date()
         else:
-            self.full_title = self.title
+            old, new = parse_datestring(date)
+            if new is None:
+                date = old.date()
+
+        expires_soon = []
+
+        all_programs = await self.site_rip()
+
+        for media in all_programs:
+            if media.type == 'serie' and media_type is None or media_type == 'serie':
+                for ep in media.episodes():
+                    if category and category != ep.category.name:
+                        continue
+
+                    if new:
+                        # We need to check ep is available because
+                        # it still be available_to but we cant download it..
+                        if old <= ep.available_to <= new and ep.available:
+                            expires_soon.append(ep)
+
+                    elif ep.available_to.date() == date and ep.available:
+                        expires_soon.append(ep)
+            else:
+                if category and category != media.category.name:
+                    continue
+
+                if media_type and media_type != media.type:
+                    continue
+
+                if new:
+                    if old <= media.available_to <= new and media.available:
+                        expires_soon.append(media)
+                elif media.available_to.date() == date and media.available:
+                    expires_soon.append(media)
+
+        return expires_soon
+        #if expires_soon:
+            #print('%s expires today' % len(expires_soon))
+            #eps = _console_select(expires_soon, ['full_title'])
+            #[m.download(os.path.join(self.save_path, str(date))) for m in eps]
+            #ip = compat_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
+            #if ip == 'y':
+            #    self.downloads().start()
 
-        self.file_name = self._filename(self.full_title)
-        self.file_path = os.path.join(SAVE_PATH, clean_name(self.name), self.file_name)
-        self._image_id = data.get('imageId') or kwargs.get('imageId')
-
-    @property
-    def thumb(self):
-        return self._image_url % (self._image_id, 500) if self._image_id else None
-
-    @property
-    def available_to(self):
-        try:
-            r = datetime.fromtimestamp(int(self.data.get('usageRights', {}).get('availableTo', 0) / 1000), None)
-        except (ValueError, OSError, OverflowError):
-            r = datetime.fromtimestamp(0)
-
-        return r
-
-    @property
-    def fanart(self):
-        return self._image_url % (self._image_id, 1920) if self._image_id else None
-
-    def _filename(self, name=None):
-        name = clean_name('%s' % name or self.full_title)
-        name = name.replace(' ', '.') + '.WEBDL-nrkdl'
-        return name
-
-    def _fix_sn(self, season_number=None, season_ids=None):
-        lookup = {}
-        stuff = season_ids or self.data.get('series', {}).get('seasonIds')
-
-        # Since shows can have a date..
-        # dateregex (\d+\.\s\w+\s\d+)
-        not_date = re.search('(\d+:\d+)', self.data.get('episodeNumberOrDate', ''))
-        if not_date is None:
-            return self.data.get('episodeNumberOrDate', '')
-
-        try:
-            for i, d in enumerate(sorted(stuff, key=lambda k: k['id']), start=1):
-                lookup[str(d['id'])] = 'S%sE%s' % (str(i).zfill(2), self.data.get('episodeNumberOrDate', '').split(':')[0].zfill(2))
-
-            return lookup[str(self.data.get('seasonId'))]
-
-        except:
-            return self.data.get('episodeNumberOrDate', '')
-
-    def as_dict(self):
-        """ raw response """
-        return self.data
-
-    def subtitle(self):
-        """ download a subtitle """
-        return Subtitle().get_subtitles(self.id, name=self.name, file_name=self.file_name)
-
-    async def __media_url(self, media_id):
-        resp = await self.client('programs/%s' % media_id)
-        return resp.get('mediaUrl', '')
-
-    @property
-    async def media_url(self):
-        """ Allow mediaurl to be created manually """
-        media_id = self.self.data('seriesId') if self.type != 'serie' else self.data.get('programId')
-        return await self.__media_url(media_id)
-        #return get_media_url(self.id if self.type != 'serie' else self.data.get('programId'))
-
-    async def download(self, path=None):
-        if self.available is False:
-            # print('Cant download %s' % c_ount(self.name))
-            return
-
-        url = await self.media_url
-        if url is None:
-            return
-
-        if path is None:
-            path = self.save_path
-
-        folder = clean_name(self.name)
-
-        os.makedirs(self.save_path, exist_ok=True)
-
-        fp = os.path.join(path, folder, self.file_name)
-        q = 'high'  # fix me
-        t = (url, q, fp)
-
-        Downloader(self).add((url, q, fp))
-        return t
-
-    def __eq__(self, other):
-        return (self.id == other.id and
-                self.title == other.title and
-                self.type == other.type and
-                self.full_title == other.full_title and
-                self.file_path == other.file_path and
-                self.file_name == other.file_name and
-                self.available == other.available)
-
-    def __repr__(self):
-        return '%s %s %s' % (self.__class__.__name__,
-                             self.type,
-                             self.full_title)
-
-
-class Episode(Media):
-    def __init__(self, data, *args, **kwargs):
-        super().__init__(data, *args, **kwargs)
-        self.season_number = kwargs.get('season_number') or data.get('seasonId')  # fixme
-        self.ep_name = data.get('episodeNumberOrDate', '')
-        self.category = Category(data.get('category') if 'category' in data else None)
-        self.id = data.get('programId')
-        self.type = 'episode'
-        # Because of https://tvapi.nrk.no/v1/programs/MSUS27001913 has no title
-        # Prefer name as kwargs,
-        self.name = kwargs.get('name') or data.get('series', {}).get('title', '') or data.get('title')
-        self.full_title = '%s %s' % (self.name, self._fix_sn(self.season_number, season_ids=kwargs.get('seasonIds')))
-        # Fix for shows like zoom og kash
-        self.file_name = self._filename(self.full_title)
-
-
-class Season(Media):
-    def __init__(self, season_number, id,
-                 description,
-                 series_id,
-                 *args,
-                 **kwargs):
-        self.id = id
-        self.type = 'season'
-        self.season_number = season_number
-        self.full_title = 'season %s' % season_number
-        self.description = description
-        self.series_id = series_id
-
-    def episodes(self):
-        return [Episode(d, season_number=self.season_number) for d in
-                _fetch('series/%s' % self.series_id)['programs']
-                if self.id == d.get('seasonId')]
-
-
-class Program(Media):
-    """ Program is the media element of movies etc """
-
-    def __init__(self, data, *args, **kwargs):
-        super(self.__class__, self).__init__(data, *args, **kwargs)
-        self.data = data
-        self.type = 'program'
-        self.__dict__.update(data)
-        self.programid = data.get('programId')
-        self.id = data.get('programId')
-        self.description = data.get('description', '')
-        self.available = data.get('isAvailable', False) or not data.get('usageRights', {}).get('hasNoRights', False)
-        if 'category' in data:
-            self.category = Category(data.get('category'))
-        else:
-            self.category = None
-
-
-class Series(Media):
-    def __init__(self, data, *args, **kwargs):
-        super().__init__(data, *args, **kwargs)
-        self.type = 'serie'
-        self.id = data.get('seriesId')
-        self.title = data['title'].strip()
-        self.name = data['title'].strip()
-        self.description = data.get('description', '')
-        self.legal_age = data.get('legalAge') or data.get('aldersgrense')
-        self.image_id = data.get('seriesImageId', data.get('imageId'))
-        self.available = data.get('isAvailable', False)
-        self.category = Category(data.get('category') if 'category' in data else None)
-        self.season_ids = self.data.get('seasons', []) or self.data.get('seasonIds', [])
-
-    def seasons(self):
-        """Returns a list of sorted list of seasons """
-
-        all_seasons = []  # the lowest seasonnumer in a show in the first season
-        # If there isnt a seasons its from /serie/
-        sea = self.data.get('seasons') or self.data.get('seasonIds')
-        s_list = sorted([s['id'] for s in sea])
-        for i, id in enumerate(s_list, 1):
-            s = Season(season_number=i,
-                       id=id,
-                       series_name=self.name,
-                       description=self.description,
-                       series_id=self.id,
-                       nrk=self._nrk)
-
-            all_seasons.append(s)
-
-        return all_seasons
-
-    async def episodes(self):
-        # since the damn warnings
-        await asyncio.sleep(0)
-
-        if self.data.get('programs', []):
-            epdata = self.data.get('programs', [])
-        else:
-            e = await self._nrk.client('series/%s' % self.id)
-            epdata = e.get('programs', [])
-
-        if epdata:
-            return [Episode(d, seasonIds=self.season_ids) for d in epdata]
-        else:
-            return []
-
-
-
-    #def episodes(self):
-    #    return self._episodes()
-        #eps = await self._nrk.client('series/%s' % self.id)
-        #if 'programs' in eps:
-        #    return [Episode(d, seasonIds=self.data.get('seasonIds', [])) for d in _fetch('series/%s' % self.id).get('programs', [])]
-        #else:
-        #    return []
-
-
-class Channel(Media):
-    def __init__(self, data, *args, **kwargs):
-        super(self.__class__, self).__init__(data, *args, **kwargs)
-        self.channel_id = data.get('channelId')
-        self.title = data.get('title').strip()
-        self.id_live = data.get('isLive')
-        self.has_epg = data.get('hasEpg')
-        self.priority = data.get('priority')
-
-    def epg(self):
-        # pragma: no cover
-        # TODO
-        guide = [(e.plannedStart, _build(e)) for e in self.data['epg']['liveBufferEpg']]
-        return sorted(guide, lambda v: v[0])
-
-
-class Category(Media):
-    def __init__(self, data, *args, **kwargs):
-        super(self.__class__, self).__init__(data, *args, **kwargs)
-        self.id = data.get('categoryId')
-        self.name = data.get('displayValue')
-        self.title = data.get('displayValue')
-
-
-
-
-
-
-
-
-
-
-
-
-if __name__ == '__main__':
-    import asyncio
-    import sys
-
-    nrk = NRK()
-
-    async def lol():
-        search_result = await nrk.search('skam', strict=True)
-        for item in search_result:
-            if item.type == 'serie':
-                for ep in await item.episodes():
-                    print(ep.full_title)
-
-
-        #mu = await f[0].media_url
-        #print(mu)
-        return
-
-    async def sr():
-        r = await nrk.site_rip()
-        return r
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(sr())
