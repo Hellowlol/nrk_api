@@ -134,4 +134,6 @@ You can now run it using example `nrkdl -s "brannma"`.
 - [Other cli tool](https://github.com/kvolden/nrk_download "nrk_download")
 - [nrk written in php](https://github.com/AndKe/nrk)
 - [nrk-tv-downloader written in bash](https://github.com/odinuge/nrk-tv-downloader)
+- [nrk-download cli tool](https://github.com/marhoy/nrk-download)
 - Use the search there is loads of nrk options.
+
