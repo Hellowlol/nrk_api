@@ -1,8 +1,8 @@
-requests = 2.17.3
-aiohttp = 2.1.0
+requests==2.17.3
+aiohttp==2.1.0
 tqdm
 docopt
-colorama; sys_platform == 'windows'
+colorama; sys_platform=='windows'
 
 # optional libs used for speedups
 aiodns

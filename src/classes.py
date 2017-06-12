@@ -7,16 +7,18 @@ import logging
 import re
 
 from helpers import clean_name
+from subtitle import Subtitle
 
-LOG = logging.getLogger(__file__)
 
-#__all__ = ['build', 'Downloader', 'Program', 'Serie', 'Episode', 'Category', ]
+
+__all__ = ['build', 'Downloader', 'Program', 'Series', 'Episode', 'Category', 'Channel']
 
 """
 This module is kinda fucked up. We try build the classes with
 many different http reponses. We want to use as little http requests as possible.
 """
 
+LOG = logging.getLogger(__file__)
 
 def build(item, nrk):
     """ Helper function that returns the correct class """
@@ -91,6 +93,7 @@ class Media(object):
 
     @property
     def available_to(self):
+        """Returns a datetime.datetime"""
         try:
             r = datetime.fromtimestamp(int(self.data.get('usageRights', {}).get('availableTo', 0) / 1000), None)
         except (ValueError, OSError, OverflowError):
@@ -133,7 +136,7 @@ class Media(object):
 
     def subtitle(self):
         """ download a subtitle """
-        return Subtitle().get_subtitles(self.id, name=self.name, file_name=self.file_name)
+        return Subtitle().get_subtitle(self.id, name=self.name, file_name=self.file_name)
 
 
     async def reload(self, soft=False):
@@ -202,6 +205,7 @@ class Episode(Media):
         self.ep_name = data.get('episodeTitle', '') or data.get('episodeNumberOrDate', '')
         self.category = Category(data.get('category') if 'category' in data else None)
         self.id = data.get('programId')
+        self.series_id = data.get('seriesId')
         self.type = 'episode'
         # Because of https://tvapi.nrk.no/v1/programs/MSUS27001913 has no title
         # This is very hacky but we dont want to make more http requests then we have to...
@@ -209,11 +213,16 @@ class Episode(Media):
         self.full_title = '%s %s' % (self.name, self._fix_sn(self.season_number, season_ids=kwargs.get('seasonIds')))
         # Fix for shows like zoom og kash
         self.file_name = self._filename(self.full_title)
+        self.legal_age = data.get('legalAge')
+        self.has_subtitle = data.get('hasSubtitles')
+        self.duration = data.get('duration')
+        self.geo_blocked = data.get('usageRights', {}).get('geoblocked', False)
+        self.relative_origin_url = data.get('relativeOriginUrl')
 
-    async def episodes():
+    async def episodes(self):
         """Get the episodes from the show."""
         LOG.debug('Fetching all episodes for %s' % self.name)
-        parent = await self_nrk.series(self.data.get('seriesId'))
+        parent = await self._nrk.series(self.data.get('seriesId'))
         return await parent.episodes()
 
     async def reload(self, soft=True):
@@ -222,6 +231,9 @@ class Episode(Media):
             return await self._nrk.program(self.id)
         await asyncio.sleep(0)
         return self
+
+    async def subtitle(self):
+        return await Subtitle().get_subtitle(self.id, name=self.name, file_name=self.file_name, save_path=self._nrk.save_path)
 
 
 class Season(Media):
@@ -239,6 +251,7 @@ class Season(Media):
         self.series_id = series_id
 
     async def episodes(self):
+        """Build return all the Episodes in a list"""
         LOG.debug('Fetching all episodes')
         epdata = await self._nrk.client('series/%s' % self.series_id)
         if epdata:
@@ -255,19 +268,25 @@ class Program(Media):
         self.data = data
         self.type = 'program'
         self.__dict__.update(data)
-        self.programid = data.get('programId')
         self.id = data.get('programId')
         self.description = data.get('description', '')
+        self.legal_age = data.get('legalAge')
+        self.has_subtitle = data.get('hasSubtitles')
+        self.duration = data.get('duration')
+        self.geo_blocked = data.get('usageRights', {}).get('geoblocked', False)
         self.available = data.get('isAvailable', False) or not data.get('usageRights', {}).get('hasNoRights', False)
+        self.relative_origin_url = data.get('relativeOriginUrl')
         if 'category' in data:
             self.category = Category(data.get('category'))
         else:
             self.category = None
 
-    async def reload(self):
-        await asyncio.sleep(0)
-        #return self
-        return await self._nrk.program(self.programid)
+    async def reload(self, soft=True):
+        #await asyncio.sleep(0)
+        return await self._nrk.program(self.id)
+
+    async def subtitle(self):
+        return await Subtitle().get_subtitles(self.id, name=self.name, file_name=self.file_name, save_path=self._nrk.save_path)
 
 
 class Series(Media):
@@ -278,15 +297,15 @@ class Series(Media):
         self.title = data['title'].strip()
         self.name = data['title'].strip()
         self.description = data.get('description', '')
-        self.legal_age = data.get('legalAge') or data.get('aldersgrense')
         self.image_id = data.get('seriesImageId', data.get('imageId'))
-        self.available = data.get('isAvailable', False)
         self.category = Category(data.get('category') if 'category' in data else None)
         self.season_ids = self.data.get('seasons', []) or self.data.get('seasonIds', [])
 
     async def reload(self, soft=True):
+        LOG.debug('Reload %s' % self.name)
+        """Reload a Series"""
         await asyncio.sleep(0)
-        return self
+        return await self._nrk.series(self.id)
 
     def seasons(self):
         """Returns a list of sorted list of seasons """
@@ -324,6 +343,17 @@ class Series(Media):
             return []
 
     async def episode(self, season, episode_nr):
+        """Get one episode.
+
+           Args:
+               season(int): 1
+               episode_nr(int): 1
+
+            Returns:
+                a Episode
+
+        """
+
         eps = await self.episodes()
         for ep in eps:
             if ep.season == season and ep.episode_nr == episode_nr:
@@ -340,10 +370,11 @@ class Channel(Media):
         self.priority = data.get('priority')
 
     def epg(self):
+        pass
         # pragma: no cover
         # TODO
-        guide = [(e.plannedStart, _build(e, nrk=self._nrk)) for e in self.data['epg']['liveBufferEpg']]
-        return sorted(guide, lambda v: v[0])
+        # guide = [(e.plannedStart, _build(e, nrk=self._nrk)) for e in self.data['epg']['liveBufferEpg']]
+        # return sorted(guide, lambda v: v[0])
 
 
 class Category(object):
@@ -360,3 +391,9 @@ class Category(object):
     async def reload(self):
         await asyncio.sleep(0)
         return self
+
+
+class Audio(Media):
+    def __init__(self, data, *args, **kwargs):
+        super(self.__class__, self).__init__(data, *args, **kwargs)
+        # todo

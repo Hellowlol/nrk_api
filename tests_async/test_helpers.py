@@ -1,6 +1,6 @@
 # test_helpers
 import datetime
-from helpers import clean_name, parse_datestring, parse_uri
+from helpers import clean_name, parse_datestring, parse_uri, parse_skole, to_ms
 
 
 def test_clean_name():
@@ -34,3 +34,10 @@ def test_parse_uri():
     assert 'KOID75007816' in list(parse_uri('https://tv.nrk.no/program/KOID75007816/drifting-livet'))
     assert '232953' in list(parse_uri('https://www.nrk.no/skole/?mediaId=21221&page=objectives&subject=norsk&objective=K15393'))
     # test for the old ps format when you find a link
+
+def test_parse_skole():
+    x = parse_skole('https://www.nrk.no/skole/?mediaId=20745&page=objectives&subject=norsk&objective=K15391')
+    assert x == '181559'
+
+def test_to_ms():
+    assert to_ms(hour=1) == 3600000

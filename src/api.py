@@ -101,7 +101,7 @@ class NRK(object):
                     raw(bool): used by cli,
                     strict(bool): limit the search to a exact match
             Returns:
-                    If raw is false it will return a Program, Episode or series,
+                    If raw is false it will return a Program, Episode or Serie,
                     else json
         """
         LOG.debug('Searching for %s' % query)
@@ -119,11 +119,14 @@ class NRK(object):
         return []
 
     def downloads(self):
+        """Used for manage downloads."""
         return Downloader(self)
 
     async def dl(self, item, bar_nr=1):
         """Downloads a media file
-           ('url', 'high', 'filepath')
+
+           Args:
+                item(tuple) = Fx ('url', 'q', 'path/to/file')
         """
         url, quality, filename = item
 
@@ -224,7 +227,6 @@ class NRK(object):
         fut_tasks = []
         for i, dl in enumerate(to_download):
             fut = asyncio.ensure_future(self.dl(dl, i))
-
             fut_tasks.append(fut)
 
         if include_progressbar:
@@ -249,10 +251,12 @@ class NRK(object):
 
             await progress_bars(to_download, self.q, bars, main_bar)
 
+        else:
+            return await asyncio.gather(*fut_tasks)
 
 
     async def site_rip(self):  # pragma: no cover
-        """ Dont run this.. """
+        """Find every video file."""
         LOG.debug('Grabbing every video file we can')
         added_ids = []
         program_ids = []
@@ -275,7 +279,6 @@ class NRK(object):
                                 # CRAPS out if json is shit. IDK
                                 pass
                     else:
-                        #continue
                         if i.get('programId') not in added_ids:
                             program_ids.append(i.get('programId'))
                             # Note series with the category tegnspraak will
@@ -293,7 +296,6 @@ class NRK(object):
             eps += await i.episodes()
         progs = await asyncio.gather(*programs)
 
-        #print('%s series' % len(series))
         print('Found:\n')
         print('Series %s' % len(series))
         print('%s episodes' % len(eps))
@@ -301,8 +303,8 @@ class NRK(object):
         print('%s media files in total' % (len(eps) + len(programs)))
         return eps + progs
 
-
     async def expires_at(self, date=None, category=None, media_type=None):
+        """Find every media element that expires on a date or a date range."""
         new = None
         if date is None:
             date = datetime.datetime.now().date()
@@ -312,7 +314,6 @@ class NRK(object):
                 date = old.date()
 
         expires_soon = []
-
         all_programs = await self.site_rip()
 
         for media in all_programs:
@@ -343,11 +344,3 @@ class NRK(object):
                     expires_soon.append(media)
 
         return expires_soon
-        #if expires_soon:
-            #print('%s expires today' % len(expires_soon))
-            #eps = _console_select(expires_soon, ['full_title'])
-            #[m.download(os.path.join(self.save_path, str(date))) for m in eps]
-            #ip = compat_input('Download que is %s do you wish to download everything now? y/n\n' % len(self.downloads()))
-            #if ip == 'y':
-            #    self.downloads().start()
-

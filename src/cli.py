@@ -33,6 +33,9 @@ async def search(nrk, q, description=False):  # fix search first
 
     ans = await prompt_async('Download que is %s do you wish to download everything now? y/n\n' % len(to_dl))
     if ans == 'y':
+        if nrk.subs:
+            for item in to_dl:
+                await item.subtitle()
         # Add to download q
         for f in to_dl:
             await f.download()
@@ -41,7 +44,10 @@ async def search(nrk, q, description=False):  # fix search first
 
 async def parse(nrk, q):
     f = await nrk.parse_url(q)
-    print(f)
+    if nrk.subs:
+        for ff in f:
+            await ff.subtitle()
+    run f
 
 
 async def expires_at(nrk, date):
@@ -74,7 +80,7 @@ async def browse(nrk):
     select_all = False
     for element in media_element:
         if nrk.subs is True:
-            pass #element.subtitle() #TODO
+            await element.subtitle()
 
         if select_all is True:
             await element.download()
@@ -143,6 +149,7 @@ def start():
     kw['dry_run'] = parser.dry_run
     kw['subtitle'] = parser.subtitle
     kw['save_path'] = parser.save_path
+    kw['subs'] = parser.subtitle
 
     nrk = NRK(**kw)
 

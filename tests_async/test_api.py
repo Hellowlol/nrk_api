@@ -14,12 +14,18 @@ def test_search(runner, nrk):
 
 
 def test_program(runner, nrk):
-    nrk = runner(nrk.program('MYNT15000717'))
-    assert nrk.id == 'mynt15000717'
+    program = runner(nrk.program('MYNT15000717'))
+    assert program.id == 'mynt15000717'
+    assert program.type == 'episode'
+    assert program.title == program.name == 'Kash og Zook'
+    assert program.description == "Kash og Zook er to gode venner som begge er veldig glade i fotball, vitser og saltstenger. De sloss og tuller og har det veldig gøy sammen!"
+    assert program.image_id == 'B1ic3I62vTH1__3jBABKnA16GCgkzGAjTR-3YIHPd25A'
+    assert program.season_ids == [{"id": 77862, "name": "Sesong 2"},{"id": 77282, "name": "Sesong 1"}]
+    assert program.category.id == 'barn'
 
 
 #@mock.patch('os.makedirs') fix the patch
-def  test_parse_url(runner, nrk):
+def  _test_parse_url(runner, nrk):
     nrk = runner(nrk.parse_url(['https://tv.nrk.no/serie/skam']))
     dl_link, _, fn = nrk[0]
     assert dl_link
@@ -27,8 +33,13 @@ def  test_parse_url(runner, nrk):
 
 
 def test_series(runner, nrk):
-    r = runner(nrk.series('kash-og-zook'))
-    assert r.name == 'Kash og Zook'
+    serie = runner(nrk.series('kash-og-zook'))
+    assert serie.name == 'Kash og Zook'
+    assert serie.title == serie.name == 'Kash og Zook'
+    assert serie.description == "Kash og Zook er to gode venner som begge er veldig glade i fotball, vitser og saltstenger. De sloss og tuller og har det veldig gøy sammen!"
+    assert serie.image_id == 'B1ic3I62vTH1__3jBABKnA16GCgkzGAjTR-3YIHPd25A'
+    assert serie.season_ids == [{"id": 77862, "name": "Sesong 2"},{"id": 77282, "name": "Sesong 1"}]
+    assert serie.category.id == 'barn'
 
 
 def test_seasons(runner, nrk):
@@ -52,21 +63,26 @@ def test_categories(runner, nrk):
 
 
 
-def _test_subtitle_from_episode(runner, nrk): # TODO
-    show = runner(nrk.program('MSUB19120616'))
-    assert getsize(show.subtitle()) > 0
+def test_subtitle_from_episode(runner, nrk): # TODO
+    ep = runner(nrk.program('MSUB19120616'))
+    srt = runner(ep.subtitle())
+    assert getsize(srt) > 0
 
 
-def test_site_rip(runner, nrk):
+def _test_site_rip(runner, nrk):
     rip = runner(nrk.site_rip())
     assert len(rip)
 
+
 def test_popular_programs(runner, nrk):
     x = runner(nrk.popular_programs())
+    assert len(x)
+
 
 def test_programs(runner, nrk):
     all_programs = runner(nrk.programs())
     assert len(all_programs)
+
 
 def test_channels(runner, nrk):
     channels = runner(nrk.channels())
@@ -75,7 +91,8 @@ def test_channels(runner, nrk):
     assert nrk1.title == 'NRK1'
     assert len(ch) == 4
 
-def test_download(runner, nrk):
+"""
+def _test_download(runner, nrk):
     nrk.dry_run = False
     nrk.cli = True
     async def gogo():
@@ -85,8 +102,8 @@ def test_download(runner, nrk):
 
     runner(gogo())
 
-"""
-def test_download_all(runner, nrk):
+
+def _test_download_all(runner, nrk):
     nrk.dry_run = False
     async def gogo():
         one = await nrk.program('MYNT15000717')
