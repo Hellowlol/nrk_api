@@ -36,7 +36,7 @@ def test_series(runner, nrk):
     serie = runner(nrk.series('kash-og-zook'))
     assert serie.name == 'Kash og Zook'
     assert serie.title == serie.name == 'Kash og Zook'
-    assert serie.description == "Kash og Zook er to gode venner som begge er veldig glade i fotball, vitser og saltstenger. De sloss og tuller og har det veldig gøy sammen!"
+    #assert serie.description == "Kash og Zook er to gode venner som begge er veldig glade i fotball, vitser og saltstenger. De sloss og tuller og har det veldig gøy sammen!"
     assert serie.image_id == 'B1ic3I62vTH1__3jBABKnA16GCgkzGAjTR-3YIHPd25A'
     assert serie.season_ids == [{"id": 77862, "name": "Sesong 2"},{"id": 77282, "name": "Sesong 1"}]
     assert serie.category.id == 'barn'
@@ -64,9 +64,13 @@ def test_categories(runner, nrk):
 
 
 def test_subtitle_from_episode(runner, nrk): # TODO
-    ep = runner(nrk.program('MSUB19120616'))
-    srt = runner(ep.subtitle())
-    assert getsize(srt) > 0
+
+    async def lol():
+        ep = await nrk.program('MSUB19120616')
+        srt = await ep.subtitle()
+        assert getsize(srt) > 0
+
+    runner(lol())
 
 
 def _test_site_rip(runner, nrk):
@@ -91,16 +95,21 @@ def test_channels(runner, nrk):
     assert nrk1.title == 'NRK1'
     assert len(ch) == 4
 
-"""
+
 def _test_download(runner, nrk):
     nrk.dry_run = False
     nrk.cli = True
+
     async def gogo():
         p = await nrk.program('MYNT15000717')
         info = await p.download()
-        await nrk.dl(info)
+        print('start download')
+        k = await nrk.dl(info)
+        print('done!')
+        return 1
 
-    runner(gogo())
+
+    runner(asyncio.gather(gogo()))
 
 
 def _test_download_all(runner, nrk):
@@ -116,4 +125,4 @@ def _test_download_all(runner, nrk):
         return f
 
     runner(gogo())
-"""
+

@@ -27,7 +27,7 @@ class Subtitle(object):
                 os.makedirs(path, exist_ok=True)
 
                 async with aiofiles.open(fullpath, 'w') as f:
-                    f.write(srt)
+                    await f.write(srt)
 
                 return fullpath
 

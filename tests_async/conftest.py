@@ -19,13 +19,13 @@ def runner(request):
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
 
-    print('start loop')
     loop = asyncio.get_event_loop()
     yield loop.run_until_complete
     loop.close()
-    print('loop closed')
 
 
 @pytest.fixture
 def nrk():
     return NRK(cli=True, dry_run=True)
+
+
