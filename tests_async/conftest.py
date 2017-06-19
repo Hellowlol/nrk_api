@@ -13,19 +13,21 @@ import pytest
 from api import NRK
 
 
-@pytest.yield_fixture
+@pytest.yield_fixture(scope="session")
 def runner(request):
     if sys.platform == 'win32':
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
 
-    loop = asyncio.get_event_loop()
-    yield loop.run_until_complete
-    loop.close()
+
+        loop = asyncio.get_event_loop()
+        yield loop.run_until_complete
+        #loop.close()
+    else:
+        loop = asyncio.get_event_loop()
+        yield loop.run_until_complete
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def nrk():
     return NRK(cli=True, dry_run=True)
-
-

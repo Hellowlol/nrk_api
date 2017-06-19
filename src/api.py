@@ -132,7 +132,7 @@ class NRK(object):
 
         if self.dry_run:
             print('Should have downloaded %s because but didnt because of -dry_run\n' % filename)
-            return
+            return None
 
         q = '' if self.cli else '-loglevel quiet '
         cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv"' % (q, url, filename)
@@ -214,7 +214,7 @@ class NRK(object):
         for i in all_ids:
             media = await self.program(i)
             if self.subs is True:
-                media.subtitle() # fix me
+                await media.subtitle() # fix me
 
             download_list.append(await media.download())
 
@@ -229,7 +229,7 @@ class NRK(object):
             fut = asyncio.ensure_future(self.dl(dl, i))
             fut_tasks.append(fut)
 
-        if include_progressbar:
+        if self.cli and include_progressbar:
             bars = []
             bar_format = '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]'
 
@@ -250,6 +250,7 @@ class NRK(object):
                     bars.append(sub_bar())
 
             await progress_bars(to_download, self.q, bars, main_bar)
+            return to_download
 
         else:
             return await asyncio.gather(*fut_tasks)

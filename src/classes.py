@@ -52,12 +52,15 @@ class Downloader(object):
     async def start(self):
         LOG.debug('Downloads starting soon.. %s downloads to go' % len(self.files_to_download))
         print('Downloads starting soon.. %s downloads to go\n' % len(self.files_to_download))
-        return await self._nrk._download_all(self.files_to_download)
+        files = await self._nrk._download_all(self.files_to_download)
+        return f
 
-    @classmethod
     def clear(cls):
         LOG.debug('Cleared downloads')
         cls.files_to_download = []
+
+    def __str__(cls):
+        return str(cls.files_to_download)
 
 
 class Media(object):
@@ -333,7 +336,9 @@ class Series(Media):
 
         if self.data.get('programs', []):
             epdata = self.data.get('programs', [])
+            print('had ep data')
         else:
+            print('NO ep data')
             e = await self._nrk.client('series/%s' % self.id)
             epdata = e.get('programs', [])
 

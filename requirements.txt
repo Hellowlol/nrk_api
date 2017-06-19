@@ -3,6 +3,7 @@ aiohttp==2.1.0
 tqdm
 docopt
 colorama; sys_platform=='windows'
+prompt_toolkit
 
 # optional libs used for speedups
 aiodns
