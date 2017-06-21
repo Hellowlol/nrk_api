@@ -22,11 +22,12 @@ def _test_program(runner, nrk): # fixme
 #@mock.patch('os.makedirs') fix the patch
 def test_parse_url(runner, nrk):
     nrk.cli = False
-    nrk = runner(nrk.parse_url(['https://tv.nrk.no/serie/skam/MYNT15000117/sesong-4/episode-1', 'http://tv.nrksuper.no/serie/kash-og-zook']))
-    dl_link, _, fn = nrk[0]
+    result = runner(nrk.parse_url(['https://tv.nrk.no/serie/skam/MYNT15000117/sesong-4/episode-1', 'http://tv.nrksuper.no/serie/kash-og-zook']))
+    result = sorted(result, key: lambda k:k[2])
+    dl_link, _, fn = result[1]
     assert dl_link
     assert basename(fn) == 'SKAM.S04E01.WEBDL-nrkdl'
-    assert nrk[1]
+    assert len(result) == 2
 
 
 def test_series(runner, nrk):
@@ -137,7 +138,7 @@ def test_downloader(runner, nrk):
         prog = await nrk.program('MYNT15000717')
         await prog.download()
         dlr = nrk.downloads()
-        assert len(dlr) == 2
+        assert len(dlr) == 3
         dlr.clear()
         assert not len(dlr)
 
@@ -153,4 +154,4 @@ def test_expire_at(runner, nrk):
         media_that_expires = await nrk.expires_at(time_periode)
         assert len(media_that_expires)
 
-    runner(gogo)
+    runner(gogo())
