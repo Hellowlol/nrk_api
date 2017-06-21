@@ -63,6 +63,30 @@ class Downloader(object):
         return str(cls.files_to_download)
 
 
+class Downloadable(object):
+    """Base for episode or program."""
+    def __init__(self, data, nrk=None, *args, **kwargs):
+        self._nrk = nrk
+        self.id = data.get('programId')
+        self.description = data.get('description', '')
+        self.legal_age = data.get('legalAge')
+        self.has_subtitle = data.get('hasSubtitles')
+        self.duration = data.get('duration')
+        self.geo_blocked = data.get('usageRights', {}).get('geoblocked', False)
+        self.available = data.get('isAvailable', False) or not data.get('usageRights', {}).get('hasNoRights', False)
+        self.relative_origin_url = data.get('relativeOriginUrl')
+
+    def more(self):
+        pass
+
+    def contributors(self):
+        pass
+
+    async def reload(self):
+        await asyncio.sleep(0)
+        return self
+
+
 class Media(object):
     """ Base class for all the media elements """
 
@@ -397,6 +421,10 @@ class Category(object):
         await asyncio.sleep(0)
         return self
 
+class Contributor(object):
+    def __init__(self, data):
+        self.name = data.get('name')
+        self.rome = data.get('role')
 
 class Audio(Media):
     def __init__(self, data, *args, **kwargs):

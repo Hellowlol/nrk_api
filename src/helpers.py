@@ -10,6 +10,7 @@ from prompt_toolkit import prompt_async
 
 LOG = logging.getLogger(__file__)
 
+
 def clean_name(name):
     """ remove all illegal chars for ffmpeg"""
     cn = re.sub(r'[-\/\\\?%\*|"<>]', '', name).replace(':', '_')
@@ -58,9 +59,6 @@ def parse_uri(urls):
         except:
             yield
 
-def console_select(something):
-    pass
-
 
 def parse_datestring(s):
     """Convert a string to datetime
@@ -85,7 +83,7 @@ def parse_datestring(s):
 
 
 def to_ms(s=None, des=None, **kwargs):
-    if s:
+    if s:  # pragma: no cover
         hour = int(s[0:2])
         minute = int(s[3:5])
         sec = int(s[6:8])
@@ -103,7 +101,7 @@ def to_ms(s=None, des=None, **kwargs):
 
 
 
-async def console_select(data, print_args=None, description_arg=None):
+async def console_select(data, print_args=None, description_arg=None): # pragma: no cover
     """ Helper function to allow grab dicts/objects from list with ints and slice. """
 
     # We need this to be a list since we are
@@ -111,11 +109,8 @@ async def console_select(data, print_args=None, description_arg=None):
     if not isinstance(data, list):
         data = list(data)
 
-    # reload
-    try:
-        data = await asyncio.gather(*[i.reload() for i in data])
-    except:
-        pass
+    # Force a reload to make sure that tvshow sxxexx works.
+    data = await asyncio.gather(*[i.reload() for i in data])
 
     if print_args is None:
         print_args = []
@@ -154,8 +149,7 @@ async def console_select(data, print_args=None, description_arg=None):
     return data
 
 
-
-async def progress_bars(tasks, q, bars, main_bar):
+async def progress_bars(tasks, q, bars, main_bar): # pragma: no cover
 
     len_tasks = len(tasks)
     bars_done = 0
