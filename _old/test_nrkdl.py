@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+'''
 from __future__ import print_function
 
 import datetime
@@ -225,3 +226,4 @@ def test_expires_at(f, *args):
     with mock.patch(ips, side_effect=['::', 'y']):
         n.expires_at(ds)
         assert len(n.downloads())
+'''
