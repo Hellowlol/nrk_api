@@ -4,6 +4,8 @@ import logging
 import re
 from json import loads
 import asyncio
+from shutil import which
+import sys
 
 import requests
 from prompt_toolkit import prompt_async
@@ -189,3 +191,10 @@ async def progress_bars(tasks, q, bars, main_bar): # pragma: no cover
 
             if bar_progress == 100:
                 bars_done += 1
+
+
+def has_ffmpeg():
+    ffmpeg = which('ffmpeg')
+    if not ffmpeg:
+        print('You need ffmpeg to download stuff')
+        exit(1)

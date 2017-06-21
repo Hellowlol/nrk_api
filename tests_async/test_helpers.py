@@ -2,6 +2,10 @@
 import datetime
 from helpers import clean_name, parse_datestring, parse_uri, parse_skole, to_ms
 
+import pytest
+
+not_impl = pytest.mark.skip(reson='not implemented')
+
 
 def test_clean_name():
     s = 'l-/\?%\*|"<>::ol'
@@ -41,3 +45,13 @@ def test_parse_skole():
 
 def test_to_ms():
     assert to_ms(hour=1) == 3600000
+
+
+@not_impl
+def test_console_select():
+    pass
+
+
+@not_impl
+def test_progress_bars():
+    pass

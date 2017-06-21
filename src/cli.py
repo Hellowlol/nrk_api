@@ -3,12 +3,12 @@ import asyncio
 import os
 import sys
 
-# exit here if not 3.6
+
 
 from prompt_toolkit import prompt_async
 
 from api import NRK
-from helpers import console_select
+from helpers import console_select, has_ffmpeg
 
 
 # Required for subprocesses to work on windows.
@@ -47,7 +47,7 @@ async def parse(nrk, q):
     if nrk.subs:
         for ff in f:
             await ff.subtitle()
-    run f
+    return f
 
 
 async def expires_at(nrk, date):
@@ -59,7 +59,6 @@ async def expires_at(nrk, date):
     [await m.download(os.path.join(nrk.save_path, str(date))) for m in eps]
     ip = await prompt_async('Download que is %s do you wish to download everything now? y/n\n' % len(eps))
     await nrk.downloads().start()
-
 
 
 async def browse(nrk):
@@ -167,4 +166,10 @@ def start():
 
 
 if __name__ == '__main__':
+    has_ffmpeg()
+
+    if sys.version_info <= (3, 6, 0):
+        print('You need atleast python 3.6.0')
+        sys.exit(1)
+
     start()
