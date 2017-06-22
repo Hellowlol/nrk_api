@@ -36,7 +36,7 @@ def build(item, nrk):
             return Program(item, nrk=nrk)
 
 
-class Downloader(object):
+class Downloader:
     files_to_download = []
 
     def __init__(self, nrk):
@@ -63,7 +63,7 @@ class Downloader(object):
         return str(cls.files_to_download)
 
 
-class Downloadable(object):
+class Downloadable:
     """Base for episode or program."""
     def __init__(self, data, nrk=None, *args, **kwargs):
         self._data = data
@@ -91,7 +91,7 @@ class Downloadable(object):
         return self
 
 
-class Base(object):
+class Base:
     def __init__(self, data, nrk=None, *args, **kwargs):
         self._data = data
         self._nrk = nrk
@@ -283,7 +283,7 @@ class Episode(Media):
         return [Contributor(i) for i in self._data.get('series', {}).get('contributor', [])]
 
 
-class Season(object):
+class Season:
     def __init__(self, season_number, id,
                  description,
                  series_id,
@@ -415,7 +415,7 @@ class Series(Base):
         return [Contributor(i) for i in self._data.get('contributor')]
 
 
-class Channel(object):
+class Channel:
     def __init__(self, data, *args, **kwargs):
         self.channel_id = data.get('channelId')
         self.title = data.get('title').strip()
@@ -431,7 +431,7 @@ class Channel(object):
         # return sorted(guide, lambda v: v[0])
 
 
-class Category(object):
+class Category:
     def __init__(self, data, nrk=None, *args, **kwargs):
         self.id = data.get('categoryId')
         self.name = data.get('displayValue')
@@ -447,7 +447,7 @@ class Category(object):
         return self
 
 
-class Contributor(object):
+class Contributor:
     def __init__(self, data, nrk=None):
         self.name = data.get('name')
         self.rome = data.get('role')

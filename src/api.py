@@ -39,7 +39,7 @@ if sys.platform == 'win32':
     asyncio.set_event_loop(loop)
 
 
-class NRK(object):
+class NRK:
     """ Main object"""
     def __init__(self,
                  dry_run=False,
@@ -47,7 +47,7 @@ class NRK(object):
                  verbose=False,
                  save_path=None,
                  subtitle=False,
-                 cli=True,
+                 cli=False,
                  include_description=False,
                  *args,
                  **kwargs):
@@ -79,7 +79,7 @@ class NRK(object):
                 if item.get('title', '').strip() != '' and
                 item['programId'] != 'notransmission']
 
-    async def auto_complete(self, q):  # fixme finish me
+    async def auto_complete(self, q):
         return await self.client('autocomplete?query=%s' % q)
 
     async def program(self, program_id):
@@ -127,11 +127,6 @@ class NRK(object):
 
         if self.dry_run:
             print('Should have downloaded %s because but didnt because of -dry_run\n' % filename)
-            #return None
-
-        #if sys.platform == 'win32':
-        #    loop = asyncio.ProactorEventLoop()
-        #    asyncio.set_event_loop(loop)
 
         q = '' if self.cli else '-loglevel quiet '
         cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv"' % (q, url, filename)
@@ -225,6 +220,16 @@ class NRK(object):
         return download_list
 
     async def _download_all(self, to_download, include_progressbar=True, include_sub_bars=True):
+        """Download all the files in to_download.to_download
+
+           Args:
+                to_download (list): list of tuples.
+                include_progressbar (bool): How show the progressbar.
+                include_sub_bars (bool): Add one extra bar pr download.
+
+           Returns:
+                list of tuples. fx [(url, q, name)]
+        """
         fut_tasks = []
         for i, dl in enumerate(to_download):
             fut = asyncio.ensure_future(self.dl(dl, i))
@@ -255,7 +260,6 @@ class NRK(object):
 
         else:
             return await asyncio.gather(*fut_tasks)
-
 
     async def site_rip(self):  # pragma: no cover
         """Find every video file."""

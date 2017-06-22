@@ -12,7 +12,7 @@ LOG = logging.getLogger(__name__)
 
 
 
-class Subtitle(object):
+class Subtitle:
 
     async def get_subtitle(cls, programid, name=None, file_name=None, save_path=None):
         url = 'http://v8.psapi.nrk.no/programs/%s/subtitles/tt' % programid
