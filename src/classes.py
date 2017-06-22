@@ -63,34 +63,6 @@ class Downloader:
         return str(cls.files_to_download)
 
 
-class Downloadable:
-    """Base for episode or program."""
-    def __init__(self, data, nrk=None, *args, **kwargs):
-        self._data = data
-        self._nrk = nrk
-        self.id = data.get('programId')
-        self.description = data.get('description', '')
-        self.legal_age = data.get('legalAge')
-        self.has_subtitle = data.get('hasSubtitles')
-        self.duration = data.get('duration')
-        self.geo_blocked = data.get('usageRights', {}).get('geoblocked', False)
-        self.available = data.get('isAvailable', False) or not data.get('usageRights', {}).get('hasNoRights', False)
-        self.relative_origin_url = data.get('relativeOriginUrl')
-
-    @property
-    def more(self):
-        """Recommeded stuff based on this item."""
-        return [build(i, nrk=self._nrk) for i in self._data.get('more')]
-
-    @property
-    def contributors(self):
-        return [Contributor(i) for i in self._data.get('contributor')]
-
-    async def reload(self):
-        await asyncio.sleep(0)
-        return self
-
-
 class Base:
     def __init__(self, data, nrk=None, *args, **kwargs):
         self._data = data
@@ -295,7 +267,7 @@ class Season:
         self.season_number = season_number
         self.full_title = 'season %s' % season_number
         self.description = description
-        self.series_id = series_id
+        self.series_id = series_idD
 
     async def episodes(self):
         """Build return all the Episodes in a list"""

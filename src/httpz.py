@@ -18,7 +18,7 @@ APICALLS = 0
 
 async def fetch(sess, url, type='json'):
     async with sess.get(url, headers=HEADERS) as response:
-        print(response.url)
+        #print(response.url)
         #global APICALLS
         #APICALLS += 1
         #print(APICALLS) # remove this later..

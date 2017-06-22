@@ -15,7 +15,7 @@ def test_search(runner, nrk):
     assert nrk[0].title == 'SKAM'
 
 
-def _test_program(runner, nrk): # fixme
+def test_program(runner, nrk): # fixme
     program = runner(nrk.program('msus27003613'))
 
 
@@ -31,12 +31,18 @@ def test_parse_url(runner, nrk):
 
 
 def test_series(runner, nrk):
-    serie = runner(nrk.series('kash-og-zook'))
-    assert serie.name == 'Kash og Zook'
-    assert serie.title == serie.name == 'Kash og Zook'
-    assert serie.image_id == 'B1ic3I62vTH1__3jBABKnA16GCgkzGAjTR-3YIHPd25A'
-    assert serie.season_ids == [{"id": 77862, "name": "Sesong 2"},{"id": 77282, "name": "Sesong 1"}]
-    assert serie.category.id == 'barn'
+    async def gogo():
+
+        serie = await nrk.series('kash-og-zook')
+        assert serie.name == 'Kash og Zook'
+        assert serie.title == serie.name == 'Kash og Zook'
+        assert serie.image_id == 'B1ic3I62vTH1__3jBABKnA16GCgkzGAjTR-3YIHPd25A'
+        assert serie.season_ids == [{"id": 77862, "name": "Sesong 2"},{"id": 77282, "name": "Sesong 1"}]
+        assert serie.category.id == 'barn'
+        assert serie.description
+        eps = await serie.episodes()
+        assert len(eps)
+    runner(gogo())
 
 
 def test_seasons(runner, nrk):
