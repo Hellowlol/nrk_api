@@ -102,7 +102,6 @@ def to_ms(s=None, des=None, **kwargs):
     return result
 
 
-
 async def console_select(data, print_args=None, description_arg=None): # pragma: no cover
     """ Helper function to allow grab dicts/objects from list with ints and slice. """
 
@@ -112,7 +111,9 @@ async def console_select(data, print_args=None, description_arg=None): # pragma:
         data = list(data)
 
     # Force a reload to make sure that tvshow sxxexx works.
-    data = await asyncio.gather(*[i.reload() for i in data])
+    # this is used by search
+    if not isinstance(data[0], tuple):
+        data = await asyncio.gather(*[i.reload(soft=True) for i in data])
 
     if print_args is None:
         print_args = []
@@ -123,13 +124,13 @@ async def console_select(data, print_args=None, description_arg=None): # pragma:
     for i, item in reversed(list(enumerate(data))):
 
         # for class attrs
-        if not isinstance(item, (list, tuple)):  # ass a cls or func:
+        if not isinstance(item, (list, tuple)):  # as a cls or func:
             out = [getattr(item, arg) for arg in print_args]
             # add the index
             out.insert(0, '{0:>3}:'.format(i))
             print(' '.join(out))
             if description_arg and item.data is not None and item.data[description_arg] is not None:
-                print("     {0}".format(stuff.data[description_arg][:110].replace("\r", " ").replace("\n", "")))
+                print("     {0}".format(item.data[description_arg][:110].rstrip()))
 
         elif isinstance(item, tuple):  # unbound, used to build a menu
             x = [item[x] for x in print_args if item[x]]
@@ -151,13 +152,12 @@ async def console_select(data, print_args=None, description_arg=None): # pragma:
     return data
 
 
-async def progress_bars(tasks, q, bars, main_bar): # pragma: no cover
+async def progress_bars(tasks, q, bars, main_bar):  # pragma: no cover
 
     len_tasks = len(tasks)
     bars_done = 0
     progress = {'def': 0}
     while True:
-        print('looping')
         if bars_done == len_tasks:
             for bb in bars:
                 # Update the sub-bars.

@@ -39,12 +39,8 @@ if sys.platform == 'win32':
     asyncio.set_event_loop(loop)
 
 
-
-
-
 class NRK(object):
     """ Main object"""
-
     def __init__(self,
                  dry_run=False,
                  client=None,
@@ -82,7 +78,6 @@ class NRK(object):
         return [_build(item, nrk=self) for item in items
                 if item.get('title', '').strip() != '' and
                 item['programId'] != 'notransmission']
-
 
     async def auto_complete(self, q):  # fixme finish me
         return await self.client('autocomplete?query=%s' % q)
@@ -134,9 +129,9 @@ class NRK(object):
             print('Should have downloaded %s because but didnt because of -dry_run\n' % filename)
             #return None
 
-        if sys.platform == 'win32':
-            loop = asyncio.ProactorEventLoop()
-            asyncio.set_event_loop(loop)
+        #if sys.platform == 'win32':
+        #    loop = asyncio.ProactorEventLoop()
+        #    asyncio.set_event_loop(loop)
 
         q = '' if self.cli else '-loglevel quiet '
         cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv"' % (q, url, filename)
@@ -170,6 +165,8 @@ class NRK(object):
                     if not line:
                         await self.q.put((100, os.path.basename(filename), bar_nr))
                         break
+            else:
+                await proc.wait()
 
     async def _helper_programs(self, program_type, category_id='all-programs'):
         x = [self.program(item.get('programId')) for item in
@@ -187,7 +184,7 @@ class NRK(object):
         return await self._helper_programs('recommendedprograms', category_id=category_id)
 
     async def categories(self):
-        return [Category(item) for item in await self.client('categories/')]
+        return [Category(item, nrk=self) for item in await self.client('categories/')]
 
     async def parse_url(self, urls):
         """ Parse the urls and download the media item.
@@ -218,7 +215,7 @@ class NRK(object):
         for i in all_ids:
             media = await self.program(i)
             if self.subs is True:
-                await media.subtitle() # fix me
+                await media.subtitle()  # fix me?
 
             download_list.append(await media.download())
 
