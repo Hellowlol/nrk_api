@@ -11,7 +11,7 @@ from subtitle import Subtitle
 
 
 
-__all__ = ['build', 'Downloader', 'Program', 'Series', 'Episode', 'Category', 'Channel']
+__all__ = ['build', 'Downloader', 'Program', 'Series', 'Episode', 'Category', 'Channel', 'Contributor']
 
 """
 This module is kinda fucked up. We try build the classes with
@@ -53,7 +53,7 @@ class Downloader(object):
         LOG.debug('Downloads starting soon.. %s downloads to go' % len(self.files_to_download))
         print('Downloads starting soon.. %s downloads to go\n' % len(self.files_to_download))
         files = await self._nrk._download_all(self.files_to_download)
-        return f
+        return files
 
     def clear(cls):
         LOG.debug('Cleared downloads')
@@ -66,6 +66,7 @@ class Downloader(object):
 class Downloadable(object):
     """Base for episode or program."""
     def __init__(self, data, nrk=None, *args, **kwargs):
+        self.data = data
         self._nrk = nrk
         self.id = data.get('programId')
         self.description = data.get('description', '')
@@ -76,30 +77,58 @@ class Downloadable(object):
         self.available = data.get('isAvailable', False) or not data.get('usageRights', {}).get('hasNoRights', False)
         self.relative_origin_url = data.get('relativeOriginUrl')
 
+    @property
     def more(self):
-        pass
+        """Recommeded stuff based on this item."""
+        return [build(i, nrk=self._nrk) for i in self.data.get('more')]
 
+    @property
     def contributors(self):
-        pass
+        return [Contributor(i) for i in self.data.get('contributor')]
 
     async def reload(self):
         await asyncio.sleep(0)
         return self
 
 
-class Media(object):
-    """ Base class for all the media elements """
+class Base(object):
+    def __init__(self, data, nrk=None, *args, **kwargs):
+        self.data = data
+        self._nrk = nrk
+        self._image_url = "http://m.nrk.no/m/img?kaleidoId=%s&width=%d"
+        self.image_id = data.get('seriesImageId', data.get('imageId'))
+
+    @property
+    def thumb(self):
+        return self._image_url % (self._image_id, 500) if self._image_id else None
+
+    @property
+    def fanart(self):
+        return self._image_url % (self._image_id, 1920) if self._image_id else None
+
+    async def reload(self, soft=True):
+        await asyncio.sleep(0)
+
+
+
+class Media(Base):
+    """ Base class for Episode and Program."""
 
     def __init__(self, data, nrk=None, *args, **kwargs):
+        super().__init__(data, nrk=nrk, *args, **kwargs)
         self.data = data
         self.name = data.get('name', '') or data.get('title', '')
         self._nrk = nrk or kwargs.get('nrk')
         self.name = self.name.strip()
         self.title = data.get('title', '')
         self.type = data.get('type')
-        self.id = data.get('id')
+        self.id = data.get('programId')
         self.description = data.get('description', '')
-        self.available = data.get('isAvailable', False)
+        self.legal_age = data.get('legalAge')
+        self.has_subtitle = data.get('hasSubtitles')
+        self.duration = data.get('duration')
+        self.geo_blocked = data.get('usageRights', {}).get('geoblocked', False)
+        self.available = data.get('isAvailable', False) or not data.get('usageRights', {}).get('hasNoRights', False)
         self._image_url = "http://m.nrk.no/m/img?kaleidoId=%s&width=%d"
         if self.data.get('episodeNumberOrDate'):
             self.full_title = '%s %s' % (self.name, self._fix_sn(self.data.get('seasonId'),
@@ -109,14 +138,15 @@ class Media(object):
 
         self.file_name = self._filename(self.full_title)
         self.file_path = os.path.join(self._nrk.save_path, clean_name(self.name), self.file_name)
-        self._image_id = data.get('imageId') or kwargs.get('imageId')
+        #self._image_id = data.get('imageId') or kwargs.get('imageId')
+        self.relative_origin_url = data.get('relativeOriginUrl')
 
     def __hash__(self):
         return hash(repr(self))
 
-    @property
-    def thumb(self):
-        return self._image_url % (self._image_id, 500) if self._image_id else None
+    #@property
+    #def thumb(self):
+    #    return self._image_url % (self._image_id, 500) if self._image_id else None
 
     @property
     def available_to(self):
@@ -128,9 +158,9 @@ class Media(object):
 
         return r
 
-    @property
-    def fanart(self):
-        return self._image_url % (self._image_id, 1920) if self._image_id else None
+    #@property
+    #def fanart(self):
+    #    return self._image_url % (self._image_id, 1920) if self._image_id else None
 
     def _filename(self, name=None):
         name = clean_name('%s' % name or self.full_title)
@@ -157,14 +187,6 @@ class Media(object):
         except:
             return self.data.get('episodeNumberOrDate', '')
 
-    def as_dict(self):
-        """ raw response """
-        return self.data
-
-    def subtitle(self):
-        """ download a subtitle """
-        return Subtitle().get_subtitle(self.id, name=self.name, file_name=self.file_name)
-
 
     async def reload(self, soft=False):
         await asyncio.sleep(0)
@@ -174,18 +196,14 @@ class Media(object):
     async def media_url(self):
         """ Allow mediaurl to be created manually """
         await asyncio.sleep(0)
-        if self.data.get('mediaUrl'):
+        if self.data.get('mediaUrl'): # mediaUrl
             return self.data.get('mediaUrl')
 
-        elif self.type == 'serie':
-            id_ = self.id
-        else:
-            id_ = self.data.get('programId')
-
-        return await self._nrk.client('programs/%s' % id_)
+        get_it = await self._nrk.client('programs/%s' % self.id)
+        return get_it.get('mediaUrl')
 
     async def download(self, path=None):
-        LOG.debug('Adding %s to download que' )
+        LOG.debug('Adding %s to download que' % self.name)
         if self.available is False:
             LOG.debug('%s isnt available' % self.name)
             # print('Cant download %s' % c_ount(self.name))
@@ -224,32 +242,29 @@ class Media(object):
                              self.type,
                              self.full_title)
 
+    async def subtitle(self):
+        return await Subtitle().get_subtitle(self.id, name=self.name,
+                                              file_name=self.file_name,
+                                              save_path=self._nrk.save_path)
+
 
 class Episode(Media):
-    def __init__(self, data, *args, **kwargs):
-        super().__init__(data, *args, **kwargs)
+    def __init__(self, data, nrk=None, *args, **kwargs):
+        super().__init__(data, nrk=nrk, *args, **kwargs)
         self.season_number = kwargs.get('season_number') or data.get('seasonId')  # fixme
         self.ep_name = data.get('episodeTitle', '') or data.get('episodeNumberOrDate', '')
-        self.category = Category(data.get('category') if 'category' in data else None)
-        self.id = data.get('programId')
         self.series_id = data.get('seriesId')
         self.type = 'episode'
         # Because of https://tvapi.nrk.no/v1/programs/MSUS27001913 has no title
         # This is very hacky but we dont want to make more http requests then we have to...
         self.name = kwargs.get('name') or data.get('series', {}).get('title', '') or data.get('seriesTitle') or data.get('title')
         self.full_title = '%s %s' % (self.name, self._fix_sn(self.season_number, season_ids=kwargs.get('seasonIds')))
-        # Fix for shows like zoom og kash
         self.file_name = self._filename(self.full_title)
-        self.legal_age = data.get('legalAge')
-        self.has_subtitle = data.get('hasSubtitles')
-        self.duration = data.get('duration')
-        self.geo_blocked = data.get('usageRights', {}).get('geoblocked', False)
-        self.relative_origin_url = data.get('relativeOriginUrl')
 
     async def episodes(self):
         """Get the episodes from the show."""
         LOG.debug('Fetching all episodes for %s' % self.name)
-        parent = await self._nrk.series(self.data.get('seriesId'))
+        parent = await self._nrk.series(self.series_id)
         return await parent.episodes()
 
     async def reload(self, soft=True):
@@ -259,11 +274,8 @@ class Episode(Media):
         await asyncio.sleep(0)
         return self
 
-    async def subtitle(self):
-        return await Subtitle().get_subtitle(self.id, name=self.name, file_name=self.file_name, save_path=self._nrk.save_path)
 
-
-class Season(Media):
+class Season(object):
     def __init__(self, season_number, id,
                  description,
                  series_id,
@@ -290,48 +302,37 @@ class Season(Media):
 class Program(Media):
     """ Program is the media element of movies etc """
 
-    def __init__(self, data, *args, **kwargs):
-        super(self.__class__, self).__init__(data, *args, **kwargs)
-        self.data = data
+    def __init__(self, data, nrk=None, *args, **kwargs):
+        super().__init__(data, nrk=nrk, *args, **kwargs)
         self.type = 'program'
-        self.__dict__.update(data)
-        self.id = data.get('programId')
-        self.description = data.get('description', '')
-        self.legal_age = data.get('legalAge')
-        self.has_subtitle = data.get('hasSubtitles')
-        self.duration = data.get('duration')
-        self.geo_blocked = data.get('usageRights', {}).get('geoblocked', False)
-        self.available = data.get('isAvailable', False) or not data.get('usageRights', {}).get('hasNoRights', False)
-        self.relative_origin_url = data.get('relativeOriginUrl')
-        if 'category' in data:
-            self.category = Category(data.get('category'))
-        else:
-            self.category = None
 
     async def reload(self, soft=True):
-        #await asyncio.sleep(0)
+        if soft:
+            return self
         return await self._nrk.program(self.id)
 
-    async def subtitle(self):
-        return await Subtitle().get_subtitles(self.id, name=self.name, file_name=self.file_name, save_path=self._nrk.save_path)
 
-
-class Series(Media):
-    def __init__(self, data, *args, **kwargs):
-        super().__init__(data, *args, **kwargs)
+class Series(Base):
+    def __init__(self, data, nrk=None, *args, **kwargs):
+        super().__init__(data, nrk=nrk, *args, **kwargs)
+        self.data = data
+        self._nrk = nrk
         self.type = 'serie'
         self.id = data.get('seriesId')
         self.title = data['title'].strip()
         self.name = data['title'].strip()
+        self.full_title = self.name
         self.description = data.get('description', '')
-        self.image_id = data.get('seriesImageId', data.get('imageId'))
+        # self.image_id = data.get('seriesImageId', data.get('imageId'))
         self.category = Category(data.get('category') if 'category' in data else None)
         self.season_ids = self.data.get('seasons', []) or self.data.get('seasonIds', [])
 
     async def reload(self, soft=True):
-        LOG.debug('Reload %s' % self.name)
+        LOG.debug('Reload %s soft %s' % (self.name, soft))
         """Reload a Series"""
         await asyncio.sleep(0)
+        if soft:
+            return self
         return await self._nrk.series(self.id)
 
     def seasons(self):
@@ -355,14 +356,12 @@ class Series(Media):
 
     async def episodes(self):
         LOG.debug('Fetching all episodes for %s' % self.name)
-        # To silence the damn the damn warnings.
+        # To silence the damn warnings.
         await asyncio.sleep(0)
 
         if self.data.get('programs', []):
             epdata = self.data.get('programs', [])
-            print('had ep data')
         else:
-            print('NO ep data')
             e = await self._nrk.client('series/%s' % self.id)
             epdata = e.get('programs', [])
 
@@ -389,9 +388,8 @@ class Series(Media):
                 return ep
 
 
-class Channel(Media):
+class Channel(object):
     def __init__(self, data, *args, **kwargs):
-        super(self.__class__, self).__init__(data, *args, **kwargs)
         self.channel_id = data.get('channelId')
         self.title = data.get('title').strip()
         self.id_live = data.get('isLive')
@@ -407,8 +405,7 @@ class Channel(Media):
 
 
 class Category(object):
-    def __init__(self, data, *args, **kwargs):
-        #super(self.__class__, self).__init__(data, *args, **kwargs)
+    def __init__(self, data, nrk=None, *args, **kwargs):
         self.id = data.get('categoryId')
         self.name = data.get('displayValue')
         self.title = data.get('displayValue')
@@ -417,16 +414,22 @@ class Category(object):
         # add a way to get all the program of this type.
         pass
 
-    async def reload(self):
+    async def reload(self, soft=True):
         await asyncio.sleep(0)
         return self
 
+
 class Contributor(object):
-    def __init__(self, data):
+    def __init__(self, data, nrk=None):
         self.name = data.get('name')
         self.rome = data.get('role')
 
+    async def reload(self, soft=True):
+        asyncio.sleep(0)
+        return self
+
+
 class Audio(Media):
-    def __init__(self, data, *args, **kwargs):
-        super(self.__class__, self).__init__(data, *args, **kwargs)
+    def __init__(self, data, nrk=None, *args, **kwargs):
+        super().__init__(data, *args, **kwargs)
         # todo

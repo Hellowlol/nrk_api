@@ -157,6 +157,7 @@ async def progress_bars(tasks, q, bars, main_bar): # pragma: no cover
     bars_done = 0
     progress = {'def': 0}
     while True:
+        print('looping')
         if bars_done == len_tasks:
             for bb in bars:
                 # Update the sub-bars.

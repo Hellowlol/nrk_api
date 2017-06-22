@@ -34,9 +34,9 @@ __all__ = ['NRK']
 _build = build # fixme
 
 
-#if sys.platform == 'win32':
-#    loop = asyncio.ProactorEventLoop()
-#    asyncio.set_event_loop(loop)
+if sys.platform == 'win32':
+    loop = asyncio.ProactorEventLoop()
+    asyncio.set_event_loop(loop)
 
 
 
@@ -132,7 +132,11 @@ class NRK(object):
 
         if self.dry_run:
             print('Should have downloaded %s because but didnt because of -dry_run\n' % filename)
-            return None
+            #return None
+
+        if sys.platform == 'win32':
+            loop = asyncio.ProactorEventLoop()
+            asyncio.set_event_loop(loop)
 
         q = '' if self.cli else '-loglevel quiet '
         cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv"' % (q, url, filename)

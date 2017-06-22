@@ -31,7 +31,7 @@ def runner(request):
 
         loop = asyncio.get_event_loop()
         yield loop.run_until_complete
-        #loop.close()  # We dont add this since it emits warnings when running pytest
+        loop.close()  # We dont add this since it emits warnings when running pytest
     else:
         loop = asyncio.get_event_loop()
         yield loop.run_until_complete
