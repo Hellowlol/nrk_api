@@ -57,7 +57,7 @@ class Downloader:
 
     def clear(cls):
         LOG.debug('Cleared downloads')
-        cls.files_to_download = cls.files_to_download.clear()
+        cls.files_to_download.clear()
 
     def __str__(cls):
         return str(cls.files_to_download)
