@@ -69,7 +69,10 @@ class Base:
         self._nrk = nrk
         self._image_url = "http://m.nrk.no/m/img?kaleidoId=%s&width=%d"
         self.image_id = data.get('seriesImageId', data.get('imageId'))
-        self.category = Category(data.get('category'), nrk=self._nrk if 'category' in data else None)
+        if 'category' in data:
+            self.category = Category(self._data.get('category'), nrk=self._nrk)
+        else:
+            self.category = None
 
     @property
     def thumb(self):
@@ -82,7 +85,6 @@ class Base:
     async def reload(self, soft=False, force=False):
         await asyncio.sleep(0)
         return self
-
 
 
 class Media(Base):
