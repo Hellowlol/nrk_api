@@ -124,7 +124,7 @@ def start():
                         required=False, help='browse')
 
     parser.add_argument('-l', '--limit', default=False,
-                        required=False, help='Limit the download speed to xxx kbs') # not in use atm
+                        required=False, help='Limit the download speed to xxx kbs')  # not in use atm
 
     parser.add_argument('-sub', '--subtitle', action='store_true', default=False,
                         required=False, help='Download subtitle for this program')
@@ -136,7 +136,7 @@ def start():
                         required=False, help='Set a save path')
 
     parser.add_argument('-u', '--url', default=False,
-                        required=False, help='Use NRK URL as sorce. Comma separated e.g. "url1 url2"')
+                        required=False, help='Use NRK URL as sorce. Comma separated e.g. "url1, url2"')
 
     parser.add_argument('-ea', '--expires_at', default=False,
                         required=False, help='Get all files that is looses access rights between two dates or a date')

@@ -41,3 +41,10 @@ def runner(request):
 @pytest.fixture(scope="function")
 def nrk():
     return NRK(cli=True, dry_run=True)
+
+
+@pytest.fixture(scope="function")
+def fresh_nrk():
+    nrk = NRK(cli=True, dry_run=True)
+    #nrk.downloads().clear()
+    return nrk

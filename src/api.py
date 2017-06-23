@@ -127,6 +127,7 @@ class NRK:
 
         if self.dry_run:
             print('Should have downloaded %s because but didnt because of -dry_run\n' % filename)
+            return
 
         q = '' if self.cli else '-loglevel quiet '
         cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv"' % (q, url, filename)

@@ -57,7 +57,7 @@ class Downloader:
 
     def clear(cls):
         LOG.debug('Cleared downloads')
-        cls.files_to_download = []
+        cls.files_to_download = cls.files_to_download.clear()
 
     def __str__(cls):
         return str(cls.files_to_download)
@@ -269,7 +269,7 @@ class Season:
         self.season_number = season_number
         self.full_title = 'season %s' % season_number
         self.description = description
-        self.series_id = series_idD
+        self.series_id = series_id
 
     async def episodes(self):
         """Build return all the Episodes in a list"""

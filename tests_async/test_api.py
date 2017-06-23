@@ -22,8 +22,9 @@ def test_program(runner, nrk): # fixme
 #@mock.patch('os.makedirs') fix the patch
 def test_parse_url(runner, nrk):
     nrk.cli = False
-    result = runner(nrk.parse_url(['https://tv.nrk.no/serie/skam/MYNT15000117/sesong-4/episode-1', 'http://tv.nrksuper.no/serie/kash-og-zook']))
-    result = sorted(result, key=lambda k:k[2])
+    result = runner(nrk.parse_url(['https://tv.nrk.no/serie/skam/MYNT15000117/sesong-4/episode-1',
+                                   'http://tv.nrksuper.no/serie/kash-og-zook']))
+    result = sorted(result, key=lambda k: k[2])
     dl_link, _, fn = result[1]
     assert dl_link
     assert basename(fn) == 'SKAM.S04E01.WEBDL-nrkdl'
