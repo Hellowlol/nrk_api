@@ -20,7 +20,7 @@ if sys.platform == 'win32':
 async def search(nrk, q, description=False):  # fix search first
     to_dl = []
     response = await nrk.search(q)
-    select = await console_select(response, ['full_title'])
+    select = await console_select(response, ['full_title'], description_arg=description)
 
     for item in select:
         if item.type == 'serie':
@@ -31,7 +31,7 @@ async def search(nrk, q, description=False):  # fix search first
         elif item.type in ('program', 'episode'):
             to_dl.append(item)
 
-    ans = await prompt_async('Download que is %s do you wish to download everything now? y/n\n' % len(to_dl))
+    ans = await prompt_async('Download queue is %s do you wish to download everything now? y/n\n>' % len(to_dl))
     if ans == 'y':
         if nrk.subs:
             for item in to_dl:
@@ -50,18 +50,18 @@ async def parse(nrk, q):
     return f
 
 
-async def expires_at(nrk, date):
+async def expires_at(nrk, date, description=False):
     """Find all videos that expires on a date or in a date range.
        Displays and propts for download.
     """
     items = await nrk.expires_at(date)
-    eps = await console_select(items, ['full_title'])
+    eps = await console_select(items, ['full_title'], description_args=description)
     [await m.download(os.path.join(nrk.save_path, str(date))) for m in eps]
-    ip = await prompt_async('Download que is %s do you wish to download everything now? y/n\n' % len(eps))
+    ip = await prompt_async('Download que is %s do you wish to download everything now? y/n\n> ' % len(eps))
     await nrk.downloads().start()
 
 
-async def browse(nrk):
+async def browse(nrk, description=False):
     """Make interactive menu where you can select and download stuff."""
     categories = await console_select(await nrk.categories(), ['title'])
 
@@ -85,10 +85,10 @@ async def browse(nrk):
             await element.download()
             continue
 
-        print('\n%s\n' % element.name)
+        print('\n%s\n' % element.full_title)
         print('%s\n' % element.description)
 
-        ans = await prompt_async('Do you wish to download this? y/n/c/all\n')
+        ans = await prompt_async('Do you wish to download this? y/n/c/all\n> ')
         if ans == 'y':
             await element.download()
         elif ans == 'all':
@@ -100,7 +100,7 @@ async def browse(nrk):
             break
 
     if nrk.downloads():
-        ans = await prompt_async('Download que is %s do you wish to download everything now? y/n\n' % len(nrk.downloads()))
+        ans = await prompt_async('Download que is %s do you wish to download everything now? y/n\n> ' % len(nrk.downloads()))
         return await nrk.downloads().start() if ans == 'y' else nrk.downloads().clear()
     return []
 
@@ -144,7 +144,6 @@ def start():
     parser = parser.parse_args()
 
     kw = {'cli': True}
-    kw['include_description'] = parser.description
     kw['dry_run'] = parser.dry_run
     kw['subtitle'] = parser.subtitle
     kw['save_path'] = parser.save_path
@@ -153,17 +152,16 @@ def start():
     nrk = NRK(**kw)
 
     if parser.search:
-        data = loop.run_until_complete(search(nrk, parser.search, ''))
+        data = loop.run_until_complete(search(nrk, parser.search, description=parser.description))
 
     elif parser.browse:
-        data = loop.run_until_complete(browse(nrk))
+        data = loop.run_until_complete(browse(nrk, description=parser.description))
 
     elif parser.url:
         data = loop.run_until_complete(parse(nrk, parser.url))
 
     elif parser.expires_at:
-        data = loop.run_until_complete(expires_at(nrk, parser.expires_at))
-
+        data = loop.run_until_complete(expires_at(nrk, parser.expires_at, description=parser.description))
 
 if __name__ == '__main__':
     has_ffmpeg()

@@ -129,15 +129,15 @@ async def console_select(data, print_args=None, description_arg=None): # pragma:
             # add the index
             out.insert(0, '{0:>3}:'.format(i))
             print(' '.join(out))
-            if description_arg and item.data is not None and item.data[description_arg] is not None:
-                print("     {0}".format(item.data[description_arg][:110].rstrip()))
+            if description_arg and item.description is not None:
+                print("     {0}".format(item.description[:110].rstrip()))
 
         elif isinstance(item, tuple):  # unbound, used to build a menu
             x = [item[x] for x in print_args if item[x]]
             x.insert(0, '{0:>3}:'.format(i))
             print(' '.join(x))
 
-    ans = await prompt_async('\nSelect a number or use slice notation: ', patch_stdout=True)
+    ans = await prompt_async('\nSelect a number or use slice notation:\n> ', patch_stdout=True)
     # Check if was slice..
     if any(s in ans for s in (':', '::', '-')):
         idx = slice(*map(lambda x: int(x.strip()) if x.strip() else None, ans.split(':')))

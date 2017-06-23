@@ -48,7 +48,6 @@ class NRK:
                  save_path=None,
                  subtitle=False,
                  cli=False,
-                 include_description=False,
                  *args,
                  **kwargs):
 
@@ -57,7 +56,6 @@ class NRK:
         self.client = client or httpclient
         self.subs = subtitle
         self.cli = cli
-        self.include_description = include_description
 
         # Set a default ssl path
         self.save_path = save_path or SAVE_PATH
@@ -332,10 +330,10 @@ class NRK:
                     if new:
                         # We need to check ep is available because
                         # it still be available_to but we cant download it..
-                        if old <= ep.available_to <= new and ep.available:
+                        if ep.available and old <= ep.available_to <= new:
                             expires_soon.append(ep)
 
-                    elif ep.available_to.date() == date and ep.available:
+                    elif ep.available and ep.available_to.date() == date:
                         expires_soon.append(ep)
             else:
                 if category and category != media.category.name:
@@ -345,9 +343,9 @@ class NRK:
                     continue
 
                 if new:
-                    if old <= media.available_to <= new and media.available:
+                    if media.available and old <= media.available_to <= new:
                         expires_soon.append(media)
-                elif media.available_to.date() == date and media.available:
+                elif media.available and media.available_to.date() == date:
                     expires_soon.append(media)
 
         return expires_soon
