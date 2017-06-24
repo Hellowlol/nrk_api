@@ -322,30 +322,17 @@ class NRK:
         all_programs = await self.site_rip()
 
         for media in all_programs:
-            if media.type == 'serie' and media_type is None or media_type == 'serie':
-                for ep in media.episodes():
-                    if category and category != ep.category.name:
-                        continue
 
-                    if new:
-                        # We need to check ep is available because
-                        # it still be available_to but we cant download it..
-                        if ep.available and old <= ep.available_to <= new:
-                            expires_soon.append(ep)
+            if category and category != media.category.name:
+                continue
 
-                    elif ep.available and ep.available_to.date() == date:
-                        expires_soon.append(ep)
-            else:
-                if category and category != media.category.name:
-                    continue
+            elif media_type and media_type != media.type:
+                continue
 
-                if media_type and media_type != media.type:
-                    continue
+            if new and media.available and old <= media.available_to <= new:
+                expires_soon.append(media)
 
-                if new:
-                    if media.available and old <= media.available_to <= new:
-                        expires_soon.append(media)
-                elif media.available and media.available_to.date() == date:
-                    expires_soon.append(media)
+            elif media.available and media.available_to.date() == date:
+                expires_soon.append(media)
 
         return expires_soon

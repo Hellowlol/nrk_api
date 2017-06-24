@@ -152,8 +152,8 @@ def test_downloader(runner, nrk):
     runner(gogo())
 
 
-@pytest.mark.slow
-def test_expire_at(runner, nrk):
+#@pytest.mark.slow
+def test_expires_at(runner, nrk):
     today = datetime.date.today()
     next_mounth = today + datetime.timedelta(weeks=4)
     time_periode = '%s-%s' % (today.strftime("%d.%m.%Y"), next_mounth.strftime("%d.%m.%Y"))
