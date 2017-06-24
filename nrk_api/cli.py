@@ -170,7 +170,6 @@ def start():  # pragma: no cover
 
 
 if __name__ == '__main__':
-    import os
     # I dont like this hack. If you have a better idea please send a pr.
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 

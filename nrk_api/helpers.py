@@ -1,11 +1,11 @@
 # helpers
 import datetime
+import inspect
 import logging
 import re
 from json import loads
 import asyncio
 from shutil import which
-import sys
 
 import requests
 from prompt_toolkit import prompt_async
@@ -209,3 +209,39 @@ def has_ffmpeg():
     if not ffmpeg:
         print('You need ffmpeg to download stuff')
         exit(1)
+
+
+def assert_writer(s, fn=None, include_private=False):
+    loop = asyncio.get_event_loop()
+    result = []
+
+    if inspect.isawaitable(s):
+        s = loop.run_until_complete(s)
+
+    if include_private:
+        sorted_dict = sorted(vars(s))
+    else:
+        sorted_dict = sorted([i for i in vars(s) if not i.startswith('_')])
+
+    for item in sorted_dict:
+        assert_line = ''
+        variable = '%s.%s' % (s.type, item)
+        if not inspect.isawaitable(getattr(s, item)):
+            value = getattr(s, item)
+        else:
+            value = loop.run_until_complete(getattr(s, item)())
+
+        if isinstance(value, bool):
+            value = value
+        else:
+            value = "'%s'" % value
+
+        assert_line = "assert %s == %s" % (variable, value)
+        result.append(assert_line)
+
+    if fn:
+        fn = '%s.txt' % s.__class__.__name__.lower()
+        with open(fn, 'w') as file:
+            file.write('    \n'.join(result))
+
+    return result

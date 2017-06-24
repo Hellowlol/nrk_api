@@ -15,6 +15,7 @@ async def resp(r):
 
 def test_search(runner, nrk):
     nrk.cli = False
+    nrk.subtitle = True
     with mock.patch('nrk_api.helpers.prompt_async', side_effect=[resp('0'), resp('1')]):
         with mock.patch('nrk_api.cli.prompt_async', side_effect=[resp('y')]):
 
@@ -30,6 +31,7 @@ def test_expires_at(runner, fresh_nrk):
     next_mounth = today + datetime.timedelta(weeks=2)
     time_periode = '%s-%s' % (today.strftime("%d.%m.%Y"), next_mounth.strftime("%d.%m.%Y"))
     fresh_nrk.cli = False
+    fresh_nrk.subtitle = True
     fresh_nrk.downloads().clear()
 
     with mock.patch('nrk_api.helpers.prompt_async', side_effect=[resp('0')]):
@@ -44,6 +46,7 @@ def test_expires_at(runner, fresh_nrk):
 def test_browse(runner, fresh_nrk):
     fresh_nrk.downloads().clear()
     fresh_nrk.cli = False
+    fresh_nrk.subtitle = True
     with mock.patch('nrk_api.helpers.prompt_async', side_effect=[resp('0'), resp('0'), resp('0')]):
         with mock.patch('nrk_api.cli.prompt_async', side_effect=[resp('all'), resp('y')]):
             async def gogo():
@@ -54,6 +57,7 @@ def test_browse(runner, fresh_nrk):
 
 def test_parse(runner, fresh_nrk):
     fresh_nrk.cli = False
+    fresh_nrk.subtitle = True
     fresh_nrk.downloads().clear()
     async def gogo():
         await parse(fresh_nrk, 'https://tv.nrk.no/serie/skam/MYNT15000117/sesong-4/episode-1 http://tv.nrksuper.no/serie/kash-og-zook'.split())
