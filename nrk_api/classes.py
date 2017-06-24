@@ -6,8 +6,8 @@ import os
 import logging
 import re
 
-from helpers import clean_name
-from subtitle import Subtitle
+from .helpers import clean_name
+from .subtitle import Subtitle
 
 
 

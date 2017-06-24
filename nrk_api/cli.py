@@ -7,8 +7,8 @@ import sys
 
 from prompt_toolkit import prompt_async
 
-from api import NRK
-from helpers import console_select, has_ffmpeg
+from .api import NRK
+from .helpers import console_select, has_ffmpeg
 
 
 # Required for subprocesses to work on windows.
@@ -164,7 +164,7 @@ if __name__ == '__main__':
         print('You need atleast python 3.6.0')
         sys.exit(1)
 
-    from setuptools_scm import get_version
-    version = get_version(root='..', relative_to=__file__)
+    #from setuptools_scm import get_version
+    #version = get_version(root='..', relative_to=__file__)
 
     start()

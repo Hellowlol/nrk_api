@@ -5,7 +5,7 @@ import logging
 
 import pytest
 
-from cli import browse, expires_at, parse, search
+from nrk_api.cli import browse, expires_at, parse, search
 
 
 async def resp(r):
@@ -15,8 +15,8 @@ async def resp(r):
 
 def test_search(runner, nrk):
     nrk.cli = False
-    with mock.patch('helpers.prompt_async', side_effect=[resp('0'), resp('1')]):
-        with mock.patch('cli.prompt_async', side_effect=[resp('y')]):
+    with mock.patch('nrk_api.helpers.prompt_async', side_effect=[resp('0'), resp('1')]):
+        with mock.patch('nrk_api.cli.prompt_async', side_effect=[resp('y')]):
 
             async def gogo():
                 await search(nrk, 'skam')
@@ -25,15 +25,15 @@ def test_search(runner, nrk):
             runner(asyncio.wait([gogo()]))
 
 
-def test_expire_at(runner, fresh_nrk):
+def test_expires_at(runner, fresh_nrk):
     today = datetime.date.today()
-    next_mounth = today + datetime.timedelta(weeks=4)
+    next_mounth = today + datetime.timedelta(weeks=2)
     time_periode = '%s-%s' % (today.strftime("%d.%m.%Y"), next_mounth.strftime("%d.%m.%Y"))
     fresh_nrk.cli = False
     fresh_nrk.downloads().clear()
 
-    with mock.patch('helpers.prompt_async', side_effect=[resp('0')]):
-        with mock.patch('cli.prompt_async', side_effect=[resp('y')]):
+    with mock.patch('nrk_api.helpers.prompt_async', side_effect=[resp('0')]):
+        with mock.patch('nrk_api.cli.prompt_async', side_effect=[resp('y')]):
             async def gogo():
                 await expires_at(fresh_nrk, time_periode)
                 assert len(fresh_nrk.downloads()) == 1
@@ -44,8 +44,8 @@ def test_expire_at(runner, fresh_nrk):
 def test_browse(runner, fresh_nrk):
     fresh_nrk.downloads().clear()
     fresh_nrk.cli = False
-    with mock.patch('helpers.prompt_async', side_effect=[resp('0'), resp('0'), resp('0')]):
-        with mock.patch('cli.prompt_async', side_effect=[resp('all'), resp('y')]):
+    with mock.patch('nrk_api.helpers.prompt_async', side_effect=[resp('0'), resp('0'), resp('0')]):
+        with mock.patch('nrk_api.cli.prompt_async', side_effect=[resp('all'), resp('y')]):
             async def gogo():
                 await browse(fresh_nrk)
                 assert len(fresh_nrk.downloads()) == 1

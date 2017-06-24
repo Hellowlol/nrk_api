@@ -5,12 +5,15 @@ import sys
 import pytest
 
 
-src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src')
+#src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src')
+p = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
+print(p)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
 
-sys.path.insert(0, src_path)
+#sys.path.insert(0, src_path)
 
 
-from api import NRK
+from nrk_api.api import NRK
 
 
 def pytest_addoption(parser):

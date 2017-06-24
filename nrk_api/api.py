@@ -1,5 +1,5 @@
-import asyncio
 import datetime
+import asyncio
 from asyncio.streams import IncompleteReadError
 import os
 import logging
@@ -9,28 +9,19 @@ import sys
 from functools import partial
 from urllib.parse import quote_plus
 
-
-
-import io
-
 import tqdm
 
-
-from httpz import httpclient
-from helpers import clean_name, parse_uri, to_ms, progress_bars, parse_datestring
-from classes import *
+from .http import httpclient
+from .helpers import clean_name, parse_uri, to_ms, progress_bars, parse_datestring
+from .classes import *
 
 
 import requests
 
-
-LOG = logging.getLogger(__file__)
-
-
-SAVE_PATH = os.path.expanduser('~/nrkdl')
-
 __all__ = ['NRK']
 
+LOG = logging.getLogger(__file__)
+SAVE_PATH = os.path.expanduser('~/nrkdl')
 _build = build # fixme
 
 
@@ -301,18 +292,20 @@ class NRK:
             eps += await i.episodes()
         progs = await asyncio.gather(*programs)
 
-        print('Found:\n')
-        print('Series %s' % len(series))
-        print('%s episodes' % len(eps))
-        print('%s programs' % len(programs))
-        print('%s media files in total' % (len(eps) + len(programs)))
+        if self.cli:
+            print('Found:\n')
+            print('Series %s' % len(series))
+            print('%s episodes' % len(eps))
+            print('%s programs' % len(programs))
+            print('%s media files in total' % (len(eps) + len(programs)))
+
         return eps + progs
 
     async def expires_at(self, date=None, category=None, media_type=None):
         """Find every media element that expires on a date or a date range."""
         new = None
         if date is None:
-            date = datetime.datetime.now().date()
+            date = datetime.datetime.now().date().strftime("%d.%m.%Y")
         else:
             old, new = parse_datestring(date)
             if new is None:

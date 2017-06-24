@@ -1,14 +1,14 @@
 requests==2.17.3
 aiohttp==2.1.0
-tqdm
-docopt
-colorama; sys_platform=='windows'
-prompt_toolkit
-aiofiles # no needed
+tqdm==4.14.0
+docopt==0.6.2
+colorama==0.3.9; sys_platform=='windows'
+prompt_toolkit==1.0.14
+aiofiles==0.3.1
 
 # optional libs used for speedups
-aiodns
-cchardet
+aiodns==1.1.1
+cchardet==2.1.0
 
 
 

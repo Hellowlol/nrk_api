@@ -1,6 +1,6 @@
 # test_helpers
 import datetime
-from helpers import clean_name, parse_datestring, parse_uri, parse_skole, to_ms
+from nrk_api.helpers import clean_name, parse_datestring, parse_uri, parse_skole, to_ms
 
 import pytest
 
