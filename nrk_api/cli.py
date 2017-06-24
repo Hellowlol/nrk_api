@@ -12,7 +12,17 @@ if sys.platform == 'win32':  # pragma: no cover
     asyncio.set_event_loop(loop)
 
 
-async def search(nrk, q, description=False):  # fix search first
+async def search(nrk, q, description=False):
+    """Search for a episode or program.description
+
+       Args:
+            nrk: NRK()
+            q(str): query
+            description(bool): Include description.
+
+    """
+    from nrk_api.helpers import console_select
+
     to_dl = []
     response = await nrk.search(q)
     select = await console_select(response, ['full_title'], description=description)
@@ -49,6 +59,8 @@ async def expires_at(nrk, date, description=False):
     """Find all videos that expires on a date or in a date range.
        Displays and propts for download.
     """
+    from nrk_api.helpers import console_select
+
     items = await nrk.expires_at(date)
     eps = await console_select(items, ['full_title'], description=description)
     [await m.download(os.path.join(nrk.save_path, str(date))) for m in eps]
@@ -58,6 +70,8 @@ async def expires_at(nrk, date, description=False):
 
 async def browse(nrk, description=False):
     """Make interactive menu where you can select and download stuff."""
+    from nrk_api.helpers import console_select
+
     categories = await console_select(await nrk.categories(), ['title'])
 
     # Lets build a menu
