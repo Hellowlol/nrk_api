@@ -20,7 +20,7 @@ if sys.platform == 'win32':  # pragma: no cover
 async def search(nrk, q, description=False):  # fix search first
     to_dl = []
     response = await nrk.search(q)
-    select = await console_select(response, ['full_title'], description_arg=description)
+    select = await console_select(response, ['full_title'], description=description)
 
     for item in select:
         if item.type == 'serie':
@@ -55,7 +55,7 @@ async def expires_at(nrk, date, description=False):
        Displays and propts for download.
     """
     items = await nrk.expires_at(date)
-    eps = await console_select(items, ['full_title'], description_args=description)
+    eps = await console_select(items, ['full_title'], description=description)
     [await m.download(os.path.join(nrk.save_path, str(date))) for m in eps]
     ip = await prompt_async('Download que is %s do you wish to download everything now? y/n\n> ' % len(eps))
     await nrk.downloads().start()
