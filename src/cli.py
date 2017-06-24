@@ -143,13 +143,10 @@ def start():
 
     parser = parser.parse_args()
 
-    kw = {'cli': True}
-    kw['dry_run'] = parser.dry_run
-    kw['subtitle'] = parser.subtitle
-    kw['save_path'] = parser.save_path
-    kw['subs'] = parser.subtitle
-
-    nrk = NRK(**kw)
+    nrk = NRK(cli=True,
+              dry_run=parser.dry_run,
+              subtitle=parser.subtitle,
+              save_path=parser.save_path)
 
     if parser.search:
         data = loop.run_until_complete(search(nrk, parser.search, description=parser.description))
@@ -163,11 +160,15 @@ def start():
     elif parser.expires_at:
         data = loop.run_until_complete(expires_at(nrk, parser.expires_at, description=parser.description))
 
+
 if __name__ == '__main__':
     has_ffmpeg()
 
     if sys.version_info <= (3, 6, 0):
         print('You need atleast python 3.6.0')
         sys.exit(1)
+
+    from setuptools_scm import get_version
+    version = get_version(root='..', relative_to=__file__)
 
     start()

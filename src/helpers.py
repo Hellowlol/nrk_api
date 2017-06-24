@@ -102,9 +102,19 @@ def to_ms(s=None, des=None, **kwargs):
     return result
 
 
-async def console_select(data, print_args=None, description_arg=None): # pragma: no cover
-    """ Helper function to allow grab dicts/objects from list with ints and slice. """
+async def console_select(data, print_args=None, description=False): # pragma: no cover
+    """ Helper function to allow grab dicts/objects from list with ints and slice.
 
+
+        Args:
+            data (list, tuple): Holding the data
+            print_args (list): list of string to print
+            description (bool): Should we print a description
+
+        Returns:
+            list
+
+    """
     # We need this to be a list since we are
     # using indexes for the console.
     if not isinstance(data, list):
@@ -129,7 +139,7 @@ async def console_select(data, print_args=None, description_arg=None): # pragma:
             # add the index
             out.insert(0, '{0:>3}:'.format(i))
             print(' '.join(out))
-            if description_arg and item.description is not None:
+            if description and item.description is not None:
                 print("     {0}".format(item.description[:110].rstrip()))
 
         elif isinstance(item, tuple):  # unbound, used to build a menu
