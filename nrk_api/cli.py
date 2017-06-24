@@ -3,12 +3,7 @@ import asyncio
 import os
 import sys
 
-
-
 from prompt_toolkit import prompt_async
-
-from .api import NRK
-from .helpers import console_select, has_ffmpeg
 
 
 # Required for subprocesses to work on windows.
@@ -106,6 +101,9 @@ async def browse(nrk, description=False):
 
 
 def start():  # pragma: no cover
+
+
+
     loop = asyncio.get_event_loop()
 
     parser = argparse.ArgumentParser()
@@ -158,7 +156,12 @@ def start():  # pragma: no cover
 
 
 if __name__ == '__main__':
-    has_ffmpeg()
+    import os
+    # I dont like this hack. If you have a better idea please send a pr.
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+    from nrk_api.api import NRK
+    from nrk_api.helpers import console_select, has_ffmpeg
 
     if sys.version_info <= (3, 6, 0):
         print('You need atleast python 3.6.0')

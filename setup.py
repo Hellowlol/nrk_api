@@ -22,7 +22,7 @@ setup(
     # Version number is automatically extracted from Git
     # https://pypi.python.org/pypi/setuptools_scm
     # https://packaging.python.org/en/latest/single_source_version.html
-    use_scm_version={'write_to': 'src/version.py'},
+    use_scm_version={'write_to': 'nrk_api/version.py'},
     setup_requires=['setuptools_scm', 'pypandoc'],
 
     description='Download series or programs from NRK.',
@@ -68,10 +68,10 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires= ['tqdm',
                        'requests==2.17.3',
-                        'aiohttp==2.1.0',
-                        'docopt',
-                        'colorama; sys_platform=="windows"',
-                        'prompt_toolkit'
+                       'aiohttp==2.1.0',
+                       'docopt',
+                       'colorama; sys_platform=="windows"',
+                       'prompt_toolkit'
 
                         # optional libs used for speedups
                         # aiodns
@@ -92,7 +92,7 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'nrkdl=src.cli:start',
+            'nrkdl=nrk_api.cli:start',
         ]
     },
 )

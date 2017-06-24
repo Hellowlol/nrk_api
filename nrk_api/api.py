@@ -11,7 +11,7 @@ from urllib.parse import quote_plus
 
 import tqdm
 
-from .http import httpclient
+from .httpz import httpclient
 from .helpers import clean_name, parse_uri, to_ms, progress_bars, parse_datestring
 from .classes import *
 
