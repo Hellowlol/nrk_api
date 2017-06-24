@@ -12,7 +12,7 @@ from helpers import console_select, has_ffmpeg
 
 
 # Required for subprocesses to work on windows.
-if sys.platform == 'win32':
+if sys.platform == 'win32':  # pragma: no cover
     loop = asyncio.ProactorEventLoop()
     asyncio.set_event_loop(loop)
 
@@ -105,11 +105,7 @@ async def browse(nrk, description=False):
     return []
 
 
-
-def start():
-    import argparse
-    import asyncio
-
+def start():  # pragma: no cover
     loop = asyncio.get_event_loop()
 
     parser = argparse.ArgumentParser()

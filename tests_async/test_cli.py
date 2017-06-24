@@ -8,13 +8,9 @@ import pytest
 from cli import browse, expires_at, parse, search
 
 
-#logging.basicConfig(level=logging.DEBUG)
-
-
 async def resp(r):
     """Helper for side effect"""
     return r
-
 
 
 def test_search(runner, nrk):
@@ -23,7 +19,7 @@ def test_search(runner, nrk):
         with mock.patch('cli.prompt_async', side_effect=[resp('y')]):
 
             async def gogo():
-                results = await search(nrk, 'skam')
+                await search(nrk, 'skam')
                 assert len(nrk.downloads())
 
             runner(asyncio.wait([gogo()]))
