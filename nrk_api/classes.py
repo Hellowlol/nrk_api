@@ -76,11 +76,11 @@ class Base:
 
     @property
     def thumb(self):
-        return self._image_url % (self._image_id, 500) if self._image_id else None
+        return self._image_url % (self.image_id, 500) if self.image_id else None
 
     @property
     def fanart(self):
-        return self._image_url % (self._image_id, 1920) if self._image_id else None
+        return self._image_url % (self.image_id, 1920) if self.image_id else None
 
     async def reload(self, soft=False, force=False):
         await asyncio.sleep(0)
