@@ -11,8 +11,7 @@ install: "pip install -r requirements.txt"
 script: py.test -vv -s --cov=$TRAVIS_BUILD_DIR/nrk_api --cov-report term-missing
 after_success:
   - codecov
-
-  deploy:
+deploy:
   provider: pypi
   user: Hellowlol
   password:
