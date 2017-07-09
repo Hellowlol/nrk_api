@@ -5,7 +5,7 @@ https://packaging.python.org/en/latest/distributing.html
 https://github.com/pypa/sampleproject
 """
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 # Possibly convert the README.md to .rst-format
 try:
@@ -17,7 +17,7 @@ except ImportError:
 
 
 setup(
-    name='nrkapi',
+    name='nrk_api',
 
     # Version number is automatically extracted from Git
     # https://pypi.python.org/pypi/setuptools_scm
@@ -59,7 +59,7 @@ setup(
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
-    packages=['nrkapi'],
+    packages=find_packages(),
 
 
     # List run-time dependencies here.  These will be installed by pip when

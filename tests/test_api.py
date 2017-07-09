@@ -90,13 +90,16 @@ def test_popular_programs(runner, nrk):
     x = runner(nrk.popular_programs())
     assert len(x)
 
+
 def test_recent_programs(runner, nrk):
     x = runner(nrk.recent_programs())
     assert len(x)
 
+
 def test_recommended_programs(runner, nrk):
     x = runner(nrk.recommended_programs())
     assert len(x)
+
 
 def test_programs(runner, nrk):
     all_programs = runner(nrk.programs())
@@ -143,29 +146,27 @@ def _test_download_all(runner, nrk):
 def test_downloader(runner, nrk):
     async def gogo():
         episode = await nrk.program('MYNT15000717')
-        assert episode.available == True
+        assert episode.available is True
         assert episode.category
         assert episode.description == '– Det er noen som angriper oss.'
-        assert episode.duration == '2202400'
+        assert episode.duration == 2202400
         assert episode.ep_name == '7:10'
         assert episode.file_name == 'SKAM.S04E07.WEBDL-nrkdl'
         #assert episode.file_path == 'C:\Users\alexa/nrkdl\SKAM\SKAM.S04E07.WEBDL-nrkdl'
         assert episode.full_title == 'SKAM S04E07'
-        assert episode.geo_blocked == 'True'
-        assert episode.has_subtitle == 'True'
+        assert episode.geo_blocked is True
+        assert episode.has_subtitle is True
         assert episode.id == 'mynt15000717'
         assert episode.image_id == 'TEFdD69m0SjyvkknfPsMvgncdCcMW-aiJbQG-iSCHb3g'
         assert episode.legal_age == '12'
         assert episode.name == 'SKAM'
         assert episode.relative_origin_url == 'serie/skam/MYNT15000717/sesong-4/episode-7'
-        assert episode.season_number == '91415'
+        assert episode.season_number == 91415
         assert episode.series_id == 'skam'
         assert episode.title == 'SKAM'
         assert episode.type == 'episode'
 
         await episode.download()
-
-
 
         dlr = nrk.downloads()
         assert len(dlr) == 3

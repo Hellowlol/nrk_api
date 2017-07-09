@@ -116,8 +116,6 @@ async def browse(nrk, description=False):
 
 def start():  # pragma: no cover
 
-
-
     loop = asyncio.get_event_loop()
 
     parser = argparse.ArgumentParser()
@@ -131,8 +129,8 @@ def start():  # pragma: no cover
     parser.add_argument('-b', '--browse', action='store_true', default=False,
                         required=False, help='browse')
 
-    parser.add_argument('-l', '--limit', default=False,
-                        required=False, help='Limit the download speed to xxx kbs')  # not in use atm
+    #parser.add_argument('-l', '--limit', default=False,
+    #                    required=False, help='Limit the download speed to xxx kbs')  # not in use atm
 
     parser.add_argument('-sub', '--subtitle', action='store_true', default=False,
                         required=False, help='Download subtitle for this program')
@@ -174,13 +172,10 @@ if __name__ == '__main__':
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
     from nrk_api.api import NRK
-    from nrk_api.helpers import console_select, has_ffmpeg
+    from nrk_api.helpers import console_select
 
     if sys.version_info <= (3, 6, 0):
         print('You need atleast python 3.6.0')
         sys.exit(1)
-
-    #from setuptools_scm import get_version
-    #version = get_version(root='..', relative_to=__file__)
 
     start()
