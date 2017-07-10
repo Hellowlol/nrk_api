@@ -5,6 +5,8 @@ https://packaging.python.org/en/latest/distributing.html
 https://github.com/pypa/sampleproject
 """
 
+import os
+
 from setuptools import setup, find_packages
 
 # Possibly convert the README.md to .rst-format
@@ -16,6 +18,16 @@ except ImportError:
     README = open('README.md', 'r').read()
 
 
+REQ = ['tqdm',
+       'requests==2.17.3',
+       'aiohttp==2.1.0',
+       'docopt',
+       'prompt_toolkit']
+
+if os.name == 'nt':
+    REQ.append('colorama')
+
+
 setup(
     name='nrk_api',
 
@@ -23,7 +35,6 @@ setup(
     # https://pypi.python.org/pypi/setuptools_scm
     # https://packaging.python.org/en/latest/single_source_version.html
     use_scm_version=True,
-    #use_scm_version={'write_to': 'nrk_api/version.py'},
     setup_requires=['setuptools_scm', 'pypandoc'],
 
     description='Download series or programs from NRK.',
@@ -67,17 +78,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires= ['tqdm',
-                       'requests==2.17.3',
-                       'aiohttp==2.1.0',
-                       'docopt',
-                       'colorama; sys_platform=="windows"',
-                       'prompt_toolkit'
-
-                        # optional libs used for speedups
-                        # aiodns
-                        # cchardet
-                        ],
+    install_requires= REQ,
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,

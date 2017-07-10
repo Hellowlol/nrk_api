@@ -2,8 +2,12 @@ import argparse
 import asyncio
 import os
 import sys
+import shutil
 
 from prompt_toolkit import prompt_async
+
+from nrk_api.api import NRK
+from nrk_api.helpers import console_select
 
 
 # Required for subprocesses to work on windows.
@@ -21,8 +25,6 @@ async def search(nrk, q, description=False):
             description(bool): Include description.
 
     """
-    from nrk_api.helpers import console_select
-
     to_dl = []
     response = await nrk.search(q)
     select = await console_select(response, ['full_title'], description=description)
@@ -59,8 +61,6 @@ async def expires_at(nrk, date, description=False):
     """Find all videos that expires on a date or in a date range.
        Displays and propts for download.
     """
-    from nrk_api.helpers import console_select
-
     items = await nrk.expires_at(date)
     eps = await console_select(items, ['full_title'], description=description)
     [await m.download(os.path.join(nrk.save_path, str(date))) for m in eps]
@@ -70,7 +70,6 @@ async def expires_at(nrk, date, description=False):
 
 async def browse(nrk, description=False):
     """Make interactive menu where you can select and download stuff."""
-    from nrk_api.helpers import console_select
 
     categories = await console_select(await nrk.categories(), ['title'])
 
@@ -118,34 +117,34 @@ def start():  # pragma: no cover
 
     loop = asyncio.get_event_loop()
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='CLI tool to download video(s) from NRK.')
 
     parser.add_argument('-s', '--search', default=False, metavar='keyword',
                         required=False, help='Search nrk for a show and download files')
 
     parser.add_argument('-d', '--description', action='store_true', default=False,
-                        required=False, help='Print verbose program description in lists')
+                        required=False, help='Print verbose program description in console')
 
     parser.add_argument('-b', '--browse', action='store_true', default=False,
-                        required=False, help='browse')
+                        required=False, help='Builds a menu where you can choose popular categories')
 
     #parser.add_argument('-l', '--limit', default=False,
     #                    required=False, help='Limit the download speed to xxx kbs')  # not in use atm
 
     parser.add_argument('-sub', '--subtitle', action='store_true', default=False,
-                        required=False, help='Download subtitle for this program')
+                        required=False, help='Download subtitle for this program too.')
 
     parser.add_argument('-dr', '--dry_run', action='store_true', default=False,
-                        required=False, help='Dry run')
+                        required=False, help='Dry run, dont download any files.')
 
     parser.add_argument('-sp', '--save_path', default=False,
                         required=False, help='Set a save path')
 
     parser.add_argument('-u', '--url', default=False,
-                        required=False, help='Use NRK URL as sorce. Comma separated e.g. "url1, url2"')
+                        required=False, help='Use NRK URL as source. Comma separated e.g. "url1, url2"')
 
     parser.add_argument('-ea', '--expires_at', default=False,
-                        required=False, help='Get all files that is looses access rights between two dates or a date')
+                        required=False, help='Get all files that looses access rights between two dates or a date')
 
     parser = parser.parse_args()
 
@@ -168,14 +167,12 @@ def start():  # pragma: no cover
 
 
 if __name__ == '__main__':
-    # I dont like this hack. If you have a better idea please send a pr.
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-    from nrk_api.api import NRK
-    from nrk_api.helpers import console_select
-
     if sys.version_info <= (3, 6, 0):
         print('You need atleast python 3.6.0')
+        sys.exit(1)
+
+    if not shutil.which('ffmpeg'):
+        print('You need ffmpeg to use the CLI. See https://ffmpeg.org/download.html')
         sys.exit(1)
 
     start()
