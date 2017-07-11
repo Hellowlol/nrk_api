@@ -38,7 +38,7 @@ async def search(nrk, q, description=False):
         elif item.type in ('program', 'episode'):
             to_dl.append(item)
 
-    ans = await prompt_async('Download queue is %s do you wish to download everything now? y/n\n>' % len(to_dl))
+    ans = await prompt_async('\nDownload queue is %s do you wish to download everything now? y/n\n> ' % len(to_dl))
     if ans == 'y':
         if nrk.subs:
             for item in to_dl:
