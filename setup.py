@@ -6,7 +6,6 @@ https://github.com/pypa/sampleproject
 """
 
 import os
-
 from setuptools import setup, find_packages
 
 # Possibly convert the README.md to .rst-format
@@ -27,7 +26,6 @@ REQ = ['tqdm',
 if os.name == 'nt':
     REQ.append('colorama')
 
-
 setup(
     name='nrk_api',
 
@@ -37,11 +35,11 @@ setup(
     use_scm_version=True,
     setup_requires=['setuptools_scm', 'pypandoc'],
 
-    description='Download series or programs from NRK.',
+    description='API for NRK, also includes a cli tool to download series or programs from NRK.',
     long_description=README,
 
     # The project's main homepage.
-    url='https://github.com/Hellowlol/nrkdl',
+    url='https://github.com/Hellowlol/nrk_api',
 
     # Author details
     author='hellowlol',

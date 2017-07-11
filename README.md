@@ -1,19 +1,14 @@
-# nrkdl [![Build Status](https://travis-ci.org/Hellowlol/nrkdl.svg?branch=master)](https://travis-ci.org/Hellowlol/nrkdl)  [![Coverage Status](https://coveralls.io/repos/github/Hellowlol/nrkdl/badge.svg?branch=master)](https://coveralls.io/github/Hellowlol/nrkdl?branch=master) ![Supports python 3.5, 3.6](https://img.shields.io/badge/python-3%2C5%203.6-green.svg "3.5, 3.6")
-API for NRK. (Norsk rikskringkasting)
+# nrk_api 
+[![Travis Status](https://travis-ci.org/Hellowlol/nrk_api.svg?branch=master)](https://travis-ci.org/Hellowlol/nrk_api)
+[![Cov](https://codecov.io/gh/hellowlol/nrk_api/branch/master/graph/badge.svg)](https://codecov.io/gh/hellowlol/nrk_api/branch/master)
+[![GitHub Releases](https://img.shields.io/github/tag/hellowlol/nrk_api.svg?label=github+release)](https://github.com/hellowlol/nrk_api/releases)
+[![PyPI version](https://badge.fury.io/py/nrk_api.svg)](https://pypi.python.org/pypi/nrk_api/)
 
-## Install
-pip install nrk_api
+API for NRK. (Norsk rikskringkasting) (Originally intended to support a CLI)
 
-The api was made to support to create a cli tool.
-
-Simple commandline tool to download any/all episodes of a show from nrk/nrk super with python.
-
-
-#CLI
-
+## CLI Usage
 In addition you will need [`ffmpeg`](https://ffmpeg.org/), e.g. `apt-get install ffmpeg` (Ubuntu), `brew install ffmpeg` (macOs)
 
-## Usage
 
     usage: nrkdl [-h] [-s keyword] [-d] [-b] [-sub] [-dr] [-sp SAVE_PATH] [-u URL]
              [-ea EXPIRES_AT]
@@ -40,7 +35,7 @@ In addition you will need [`ffmpeg`](https://ffmpeg.org/), e.g. `apt-get install
 
 ## Search
 ```
-> python nrkdl.py -s "brannma"
+> nrkdl -s "brannma"
   2: Brannmann i seks knop
   1: Brannmann
   0: Brannmann Sam
@@ -103,6 +98,9 @@ docker run -it -v ${DATA:-${HOME}/downloads}:/nrkdl/downloads $(docker build -q 
 ```
 
 You can now run it using example `nrkdl -s "brannma"`.
+
+## Install
+pip install nrk_api
 
 ## Why should you use this library?
 - Easy to download entire shows
