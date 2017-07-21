@@ -32,7 +32,7 @@ async def fetch(sess, url, type='json'):
                 return {}
 
 
-async def httpclient(url, conn=None, session=None):
+async def httpclient(url, conn=None, session=None, type='json'):
     # Roll your own client if you need to set any limits or disable
     # verify certs
     url = API_URL + url
@@ -40,4 +40,4 @@ async def httpclient(url, conn=None, session=None):
         session = aiohttp.ClientSession(connector=conn, json_serialize=json.dumps)
 
     async with session as sess:
-        return await ensure_future(fetch(sess, url))
+        return await ensure_future(fetch(sess, url, type=type))

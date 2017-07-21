@@ -43,7 +43,7 @@ def test_series(runner, nrk):
         seasons = serie.seasons()
         assert len(eps)
         assert len(seasons)
-        assert serie.more()
+        assert not serie.more
         assert serie.contributors()
 
         assert serie.episode(1, 1)
@@ -178,7 +178,7 @@ def test_downloader(runner, nrk):
         assert not len(dlr)
 
         assert episode.episodes()
-        assert episode.more()
+        assert episode.more
         assert episode.contributors()
 
     runner(gogo())

@@ -297,7 +297,7 @@ class Program(Media):
     @property
     def more(self):
         """Recommeded stuff based on this item."""
-        return [build(i, nrk=self._nrk) for i in self._data.get('more')]
+        return [build(i, nrk=self._nrk) for i in self._data.get('more', [])]
 
 
 class Series(Base):
