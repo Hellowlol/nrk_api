@@ -60,8 +60,7 @@ def test_parse(runner, fresh_nrk):
     fresh_nrk.subtitle = True
     fresh_nrk.downloads().clear()
     async def gogo():
-        await parse('https://tv.nrk.no/program/KOID22009417/plasthvalen')
-        await parse(fresh_nrk, 'https://tv.nrk.no/serie/skam/MYNT15000117/sesong-4/episode-1 http://tv.nrksuper.no/serie/kash-og-zook'.split())
+        await parse(fresh_nrk, 'https://tv.nrk.no/serie/skam/MYNT15000117/sesong-4/episode-1 http://tv.nrksuper.no/serie/kash-og-zook https://tv.nrk.no/program/KOID22009417/plasthvalen'.split())
         assert len(fresh_nrk.downloads()) == 3
 
     runner(gogo())

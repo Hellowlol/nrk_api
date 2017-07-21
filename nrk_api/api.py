@@ -25,7 +25,7 @@ SAVE_PATH = os.path.expanduser('~/nrkdl')
 _build = build  # fixme
 
 
-if sys.platform == 'win32':
+if sys.platform == 'win32':  # pragma: no cover
     loop = asyncio.ProactorEventLoop()
     asyncio.set_event_loop(loop)
 

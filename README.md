@@ -1,8 +1,8 @@
-# nrk_api 
+# nrk_api
 [![Travis Status](https://travis-ci.org/Hellowlol/nrk_api.svg?branch=master)](https://travis-ci.org/Hellowlol/nrk_api)
 [![Cov](https://codecov.io/gh/hellowlol/nrk_api/branch/master/graph/badge.svg)](https://codecov.io/gh/hellowlol/nrk_api/branch/master)
 [![GitHub Releases](https://img.shields.io/github/tag/hellowlol/nrk_api.svg?label=github+release)](https://github.com/hellowlol/nrk_api/releases)
-[![PyPI version](https://badge.fury.io/py/nrk_api.svg)](https://pypi.python.org/pypi/nrk_api/)
+[![PyPI version](https://badge.fury.io/py/nrk-api.svg)](https://pypi.python.org/pypi/nrk-api)
 
 API for NRK. (Norsk rikskringkasting) (Originally intended to support a CLI)
 
