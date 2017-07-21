@@ -36,7 +36,7 @@ def test_series(runner, nrk):
         assert serie.name == 'Kash og Zook'
         assert serie.title == serie.name == 'Kash og Zook'
         assert serie.image_id == 'B1ic3I62vTH1__3jBABKnA16GCgkzGAjTR-3YIHPd25A'
-        assert serie.season_ids == [{"id": 77862, "name": "Sesong 2"},{"id": 77282, "name": "Sesong 1"}]
+        assert serie.season_ids == [{"id": 77862, "name": "Sesong 2"}, {"id": 77282, "name": "Sesong 1"}]
         assert serie.category.id == 'barn'
         assert serie.description
         eps = await serie.episodes()
@@ -44,7 +44,7 @@ def test_series(runner, nrk):
         assert len(eps)
         assert len(seasons)
         assert not serie.more
-        assert serie.contributors()
+        assert serie.contributors
 
         assert serie.episode(1, 1)
 
@@ -177,9 +177,9 @@ def test_downloader(runner, nrk):
         dlr.clear()
         assert not len(dlr)
 
-        assert episode.episodes()
+        assert await episode.episodes()
         assert episode.more
-        assert episode.contributors()
+        assert episode.contributors
 
     runner(gogo())
 

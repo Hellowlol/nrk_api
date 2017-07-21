@@ -1,4 +1,3 @@
-#classes
 import asyncio
 from datetime import datetime
 from operator import itemgetter
@@ -9,9 +8,8 @@ import re
 from .helpers import clean_name
 from .subtitle import Subtitle
 
-
-
 __all__ = ['build', 'Downloader', 'Program', 'Series', 'Episode', 'Category', 'Channel', 'Contributor']
+
 
 """
 This module is kinda fucked up. We try build the classes with
@@ -19,6 +17,7 @@ many different http reponses. We want to use as little http requests as possible
 """
 
 LOG = logging.getLogger(__file__)
+
 
 def build(item, nrk):
     """ Helper function that returns the correct class """
@@ -154,7 +153,6 @@ class Media(Base):
         except:
             return self._data.get('episodeNumberOrDate', '')
 
-
     async def reload(self, soft=False, force=False):
         await asyncio.sleep(0)
         return self
@@ -250,11 +248,11 @@ class Episode(Media):
     @property
     def more(self):
         """Recommeded stuff based on this item."""
-        return [build(i, nrk=self._nrk) for i in self._data.get('series', {}).get('more', [])]
+        return [build(i, nrk=self._nrk) for i in self._data.get('more', [])]
 
     @property
     def contributors(self):
-        return [Contributor(i) for i in self._data.get('series', {}).get('contributor', [])]
+        return [Contributor(i) for i in self._data.get('contributor', [])]
 
 
 class Season:
