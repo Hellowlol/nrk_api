@@ -32,6 +32,7 @@ def test_series(runner, nrk):
     async def gogo():
 
         serie = await nrk.series('kash-og-zook')
+
         assert serie.name == 'Kash og Zook'
         assert serie.title == serie.name == 'Kash og Zook'
         assert serie.image_id == 'B1ic3I62vTH1__3jBABKnA16GCgkzGAjTR-3YIHPd25A'
@@ -39,7 +40,14 @@ def test_series(runner, nrk):
         assert serie.category.id == 'barn'
         assert serie.description
         eps = await serie.episodes()
+        seasons = await serie.seasons()
         assert len(eps)
+        assert len(seasons)
+        assert serie.more()
+        assert serie.contributors()
+
+        assert serie.episode(1, 1)
+
     runner(gogo())
 
 
@@ -168,6 +176,10 @@ def test_downloader(runner, nrk):
         assert len(dlr) == 3
         dlr.clear()
         assert not len(dlr)
+
+        assert ep.episodes()
+        assert ep.more()
+        assert ep.contributors()
 
     runner(gogo())
 
