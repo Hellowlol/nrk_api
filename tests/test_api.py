@@ -22,7 +22,6 @@ def test_parse_url(runner, nrk):
     result = runner(nrk.parse_url(['https://tv.nrk.no/serie/skam/MYNT15000117/sesong-4/episode-1',
                                    'http://tv.nrksuper.no/serie/kash-og-zook']))
     result = sorted(result, key=lambda k: k[2])
-    print(result)
     dl_link, _, fn = result[1]
     assert dl_link
     assert basename(fn) == 'SKAM.S04E01.WEBDL-nrkdl'
@@ -164,8 +163,9 @@ def test_downloader(runner, nrk):
         assert episode.legal_age == '12'
         assert episode.name == 'SKAM'
         assert episode.relative_origin_url == 'serie/skam/MYNT15000717/sesong-4/episode-7'
-        assert episode.season_number == 91415
+        assert episode.season_number == 4
         assert episode.series_id == 'skam'
+        assert episode.season_id == 91415
         assert episode.title == 'SKAM'
         assert episode.type == 'episode'
 

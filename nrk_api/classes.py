@@ -217,15 +217,24 @@ class Media(Base):
 class Episode(Media):
     def __init__(self, data, nrk=None, *args, **kwargs):
         super().__init__(data, nrk=nrk, *args, **kwargs)
-        self.season_number = kwargs.get('season_number') or data.get('seasonId')  # fixme
+        self._sn = kwargs.get('season_number') or data.get('seasonId')
+        self._season_ids = kwargs.get('seasonIds', []) or data.get('series', {}).get('seasonIds', [])
         self.ep_name = data.get('episodeTitle', '') or data.get('episodeNumberOrDate', '')
         self.series_id = data.get('seriesId')
+        self.season_id = data.get('seasonId')
         self.type = 'episode'
         # Because of https://tvapi.nrk.no/v1/programs/MSUS27001913 has no title
         # This is very hacky but we dont want to make more http requests then we have to...
         self.name = kwargs.get('name') or data.get('series', {}).get('title', '') or data.get('seriesTitle') or data.get('title')
         self.full_title = '%s %s' % (self.name, self._fix_sn(self.season_number, season_ids=kwargs.get('seasonIds')))
         self.file_name = self._filename(self.full_title)
+
+    @property
+    def season_number(self):
+        for i, e in enumerate(sorted(self._season_ids, key=itemgetter('id')), start=1):
+            if e.get('id') == self._sn:
+                return i
+
 
     async def episodes(self):
         """Get the episodes from the show."""
@@ -374,7 +383,7 @@ class Series(Base):
 
         eps = await self.episodes()
         for ep in eps:
-            if ep.season == season and ep.episode_nr == episode_nr:
+            if ep.season_number == season and ep.episode_nr == episode_nr:
                 return ep
 
 
