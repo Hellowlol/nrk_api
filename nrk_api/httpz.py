@@ -29,13 +29,15 @@ async def fetch(sess, url, type='json'):
             else:
                 return await response.text()
         except:
-                return {}
+            return {}
 
 
 async def httpclient(url, conn=None, session=None, type='json'):
     # Roll your own client if you need to set any limits or disable
     # verify certs
-    url = API_URL + url
+    if type == 'json':
+        url = API_URL + url
+
     if session is None:
         session = aiohttp.ClientSession(connector=conn, json_serialize=json.dumps)
 

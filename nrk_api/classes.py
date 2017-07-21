@@ -248,11 +248,11 @@ class Episode(Media):
     @property
     def more(self):
         """Recommeded stuff based on this item."""
-        return [build(i, nrk=self._nrk) for i in self._data.get('more', [])]
+        return [build(i, nrk=self._nrk) for i in self._data.get('more', []) if i]
 
     @property
     def contributors(self):
-        return [Contributor(i) for i in self._data.get('contributor', [])]
+        return [Contributor(i) for i in self._data.get('contributors', []) if i]
 
 
 class Season:
@@ -376,15 +376,6 @@ class Series(Base):
         for ep in eps:
             if ep.season == season and ep.episode_nr == episode_nr:
                 return ep
-
-    @property
-    def more(self):
-        """Recommeded stuff based on this item."""
-        return [build(i, nrk=self._nrk) for i in self._data.get('more', [])]
-
-    @property
-    def contributors(self):
-        return [Contributor(i) for i in self._data.get('contributor', [])]
 
 
 class Channel:

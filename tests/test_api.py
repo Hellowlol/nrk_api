@@ -22,6 +22,7 @@ def test_parse_url(runner, nrk):
     result = runner(nrk.parse_url(['https://tv.nrk.no/serie/skam/MYNT15000117/sesong-4/episode-1',
                                    'http://tv.nrksuper.no/serie/kash-og-zook']))
     result = sorted(result, key=lambda k: k[2])
+    print(result)
     dl_link, _, fn = result[1]
     assert dl_link
     assert basename(fn) == 'SKAM.S04E01.WEBDL-nrkdl'
@@ -43,10 +44,8 @@ def test_series(runner, nrk):
         seasons = serie.seasons()
         assert len(eps)
         assert len(seasons)
-        assert not serie.more
-        assert serie.contributors
 
-        assert serie.episode(1, 1)
+        assert await serie.episode(1, 1)
 
     runner(gogo())
 
