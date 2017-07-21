@@ -40,7 +40,7 @@ def test_series(runner, nrk):
         assert serie.category.id == 'barn'
         assert serie.description
         eps = await serie.episodes()
-        seasons = await serie.seasons()
+        seasons = serie.seasons()
         assert len(eps)
         assert len(seasons)
         assert serie.more()
@@ -177,9 +177,9 @@ def test_downloader(runner, nrk):
         dlr.clear()
         assert not len(dlr)
 
-        assert ep.episodes()
-        assert ep.more()
-        assert ep.contributors()
+        assert episode.episodes()
+        assert episode.more()
+        assert episode.contributors()
 
     runner(gogo())
 
