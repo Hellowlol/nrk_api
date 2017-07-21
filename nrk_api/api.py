@@ -1,11 +1,11 @@
-import datetime
 import asyncio
-from asyncio.streams import IncompleteReadError
+import datetime
 import os
 import logging
 import re
 import sys
 
+from asyncio.streams import IncompleteReadError
 from functools import partial
 from urllib.parse import quote_plus
 
@@ -22,7 +22,7 @@ __all__ = ['NRK']
 
 LOG = logging.getLogger(__file__)
 SAVE_PATH = os.path.expanduser('~/nrkdl')
-_build = build # fixme
+_build = build  # fixme
 
 
 if sys.platform == 'win32':
@@ -31,11 +31,11 @@ if sys.platform == 'win32':
 
 
 class NRK:
-    """ Main object"""
+    """Main class for the api."""
+
     def __init__(self,
                  dry_run=False,
                  client=None,
-                 verbose=False,
                  save_path=None,
                  subtitle=False,
                  cli=False,
@@ -43,7 +43,6 @@ class NRK:
                  **kwargs):
 
         self.dry_run = dry_run
-        self.verbose = verbose
         self.client = client or httpclient
         self.subs = subtitle
         self.cli = cli
@@ -225,7 +224,7 @@ class NRK:
             fut = asyncio.ensure_future(self.dl(dl, i))
             fut_tasks.append(fut)
 
-        if self.cli and include_progressbar:
+        if self.cli and include_progressbar:  # pragma: no cover
             bars = []
             bar_format = '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]'
 
@@ -251,7 +250,7 @@ class NRK:
         else:
             return await asyncio.gather(*fut_tasks)
 
-    async def site_rip(self):  # pragma: no cover
+    async def site_rip(self):
         """Find every video file."""
         LOG.debug('Grabbing every video file we can')
         added_ids = []

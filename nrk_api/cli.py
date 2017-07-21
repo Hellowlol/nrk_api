@@ -128,7 +128,7 @@ def start():  # pragma: no cover
     parser.add_argument('-b', '--browse', action='store_true', default=False,
                         required=False, help='Builds a menu where you can choose popular categories')
 
-    #parser.add_argument('-l', '--limit', default=False,
+    # parser.add_argument('-l', '--limit', default=False,
     #                    required=False, help='Limit the download speed to xxx kbs')  # not in use atm
 
     parser.add_argument('-sub', '--subtitle', action='store_true', default=False,
@@ -166,7 +166,7 @@ def start():  # pragma: no cover
         data = loop.run_until_complete(expires_at(nrk, parser.expires_at, description=parser.description))
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     if sys.version_info <= (3, 6, 0):
         print('You need atleast python 3.6.0')
         sys.exit(1)

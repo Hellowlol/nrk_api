@@ -1,12 +1,9 @@
-# test api
+import asyncio
 import datetime
 from functools import partial
 from os.path import basename, getsize
 from unittest import mock
 import pytest
-
-import asyncio
-
 
 
 def test_search(runner, nrk):
@@ -19,7 +16,7 @@ def test_program(runner, nrk): # fixme
     program = runner(nrk.program('msus27003613'))
 
 
-#@mock.patch('os.makedirs') fix the patch
+#  @mock.patch('os.makedirs') fix the patch
 def test_parse_url(runner, nrk):
     nrk.cli = False
     result = runner(nrk.parse_url(['https://tv.nrk.no/serie/skam/MYNT15000117/sesong-4/episode-1',
@@ -70,7 +67,6 @@ def test_categories(runner, nrk):
                   'tegnspraak', 'underholdning', 'vitenskap']
 
 
-
 def test_subtitle_from_episode(runner, nrk): # TODO
 
     async def lol():
@@ -114,7 +110,7 @@ def test_channels(runner, nrk):
     assert len(ch) == 4
 
 
-def _test_download(runner, nrk): # This test works but hangs in pytest
+def _test_download(runner, nrk):  # This test works but hangs in pytest
     nrk.dry_run = True
     nrk.cli = False
 
@@ -152,7 +148,7 @@ def test_downloader(runner, nrk):
         assert episode.duration == 2202400
         assert episode.ep_name == '7:10'
         assert episode.file_name == 'SKAM.S04E07.WEBDL-nrkdl'
-        #assert episode.file_path == 'C:\Users\alexa/nrkdl\SKAM\SKAM.S04E07.WEBDL-nrkdl'
+        #  episode.file_path == 'C:\Users\alexa/nrkdl\SKAM\SKAM.S04E07.WEBDL-nrkdl'
         assert episode.full_title == 'SKAM S04E07'
         assert episode.geo_blocked is True
         assert episode.has_subtitle is True
@@ -176,7 +172,6 @@ def test_downloader(runner, nrk):
     runner(gogo())
 
 
-#@pytest.mark.slow
 def test_expires_at(runner, nrk):
     today = datetime.date.today()
     next_mounth = today + datetime.timedelta(weeks=4)
