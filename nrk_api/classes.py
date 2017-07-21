@@ -13,7 +13,7 @@ __all__ = ['build', 'Downloader', 'Program', 'Series', 'Episode', 'Category', 'C
 
 """
 This module is kinda fucked up. We try build the classes with
-many different http reponses. We want to use as little http requests as possible.
+many different http responses. We want to use as little http requests as possible.
 """
 
 LOG = logging.getLogger(__file__)
@@ -380,11 +380,11 @@ class Series(Base):
     @property
     def more(self):
         """Recommeded stuff based on this item."""
-        return [build(i, nrk=self._nrk) for i in self._data.get('more')]
+        return [build(i, nrk=self._nrk) for i in self._data.get('more', [])]
 
     @property
     def contributors(self):
-        return [Contributor(i) for i in self._data.get('contributor')]
+        return [Contributor(i) for i in self._data.get('contributor', [])]
 
 
 class Channel:

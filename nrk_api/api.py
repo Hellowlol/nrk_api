@@ -187,7 +187,7 @@ class NRK:
             if id:
                 all_ids.add(id)
             else:
-                html = await self.httpclient(urls[i], type='text')
+                html = await self.client(urls[i], type='text')
                 # html = requests.get(urls[i]).text
 
                 for reg in regex_list:
