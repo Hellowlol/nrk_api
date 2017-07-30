@@ -63,7 +63,7 @@ class Downloader:
 
 
 class Base:
-    def __init__(self, data, nrk=None, *args, **kwargs):
+    def __init__(self, data, nrk=None, *args, **kwargs): #pylint: unused-argument (W0613)
         self._data = data
         self._nrk = nrk
         self._image_url = "http://m.nrk.no/m/img?kaleidoId=%s&width=%d"
@@ -81,7 +81,7 @@ class Base:
     def fanart(self):
         return self._image_url % (self.image_id, 1920) if self.image_id else None
 
-    async def reload(self, soft=False, force=False):
+    async def reload(self, soft=False, force=False): #pylint: unused-argument (W0613)
         await asyncio.sleep(0)
         return self
 
@@ -150,7 +150,7 @@ class Media(Base):
 
             return lookup[str(self._data.get('seasonId'))]
 
-        except:
+        except: # pylint: bare-except (W0702)
             return self._data.get('episodeNumberOrDate', '')
 
     async def reload(self, soft=False, force=False):
@@ -244,7 +244,7 @@ class Episode(Media):
 
     async def reload(self, soft=False, force=False):
         # Soft reload only reloaded if we have a change to get the sxxexx format
-        LOG.debug('soft %s reloading %s' % (soft, self.full_title))
+        LOG.debug('soft %s reloading %s', soft, self.full_title)
 
         if soft and re.search(r'(\d+:\d+)', self.full_title):
             return await self._nrk.program(self.id)
@@ -414,7 +414,7 @@ class Category:
         eps = await self._nrk.programs(category_id=self.id)
         return eps
 
-    async def reload(self, soft=False, force=False): # FIXME
+    async def reload(self, soft=False, force=False): # pylint: unused-arguments
         await asyncio.sleep(0)
         return self
 
@@ -424,7 +424,7 @@ class Contributor:
         self.name = data.get('name')
         self.rome = data.get('role')
 
-    async def reload(self, soft=False, force=False):
+    async def reload(self, soft=False, force=False): # pylint: unused-arguments
         asyncio.sleep(0)
         return self
 

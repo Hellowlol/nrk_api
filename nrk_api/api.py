@@ -32,7 +32,7 @@ class NRK:
     """Main class for the api."""
 
     def __init__(self, dry_run=False, client=None,
-                 save_path=None, subtitle=False, cli=False):
+                 save_path=None, subtitle=False, cli=False): # pylint: too-many-arguments (R0913)
 
         self.dry_run = dry_run
         self.client = client or httpclient
@@ -179,7 +179,7 @@ class NRK:
             if idx:
                 all_ids.add(idx)
             else:
-                html = await self.client(urls[i], type='text')
+                html = await self.client(urls[i], rtype='text')
 
                 for reg in regex_list:
                     item = reg.findall(html)
@@ -262,7 +262,7 @@ class NRK:
                             try:
                                 s = asyncio.ensure_future(self.series(i.get('seriesId', '')))
                                 series.append(s)
-                            except:  # pragma: no cover
+                            except:  # pylint: bare-except (W0702)
                                 # CRAPS out if json is shit. IDK
                                 pass
                     else:
@@ -273,7 +273,7 @@ class NRK:
                             try:
                                 p = asyncio.ensure_future(self.program(i.get('programId')))
                                 programs.append(p)
-                            except:  # pragma: no cover
+                            except:  # pylint: bare-except (W0702)
                                 # CRAPS out if json is shit. IDK
                                 pass
 
