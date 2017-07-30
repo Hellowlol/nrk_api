@@ -12,11 +12,9 @@ from urllib.parse import quote_plus
 import tqdm
 
 from .httpz import httpclient
-from .helpers import clean_name, parse_uri, to_ms, progress_bars, parse_datestring
+from .helpers import parse_uri, to_ms, progress_bars, parse_datestring
 from .classes import *
 
-
-import requests
 
 __all__ = ['NRK']
 
@@ -33,14 +31,8 @@ if sys.platform == 'win32':  # pragma: no cover
 class NRK:
     """Main class for the api."""
 
-    def __init__(self,
-                 dry_run=False,
-                 client=None,
-                 save_path=None,
-                 subtitle=False,
-                 cli=False,
-                 *args,
-                 **kwargs):
+    def __init__(self, dry_run=False, client=None,
+                 save_path=None, subtitle=False, cli=False):
 
         self.dry_run = dry_run
         self.client = client or httpclient
@@ -87,7 +79,7 @@ class NRK:
                     If raw is false it will return a Program, Episode or Serie,
                     else json
         """
-        LOG.debug('Searching for %s' % query)
+        LOG.debug('Searching for %s', query)
         response = await self.client('search/%s' % quote_plus(query))
         if response:
             if strict:
@@ -177,15 +169,15 @@ class NRK:
                 urls(list): ''
 
         """
-        LOG.debug('Parsing url(s) %s' % (' '.join(urls)))
+        LOG.debug('Parsing url(s) %s', ' '.join(urls))
 
         regex_list = [re.compile(r'programId: \"([a-zA-Z]+\d+)\"'),
                       re.compile(r'data-video-id=\"(\d+)\"')]
 
         all_ids = set()
-        for i, id in enumerate(parse_uri(urls)):
-            if id:
-                all_ids.add(id)
+        for i, idx in enumerate(parse_uri(urls)):
+            if idx:
+                all_ids.add(idx)
             else:
                 html = await self.client(urls[i], type='text')
 
@@ -270,7 +262,7 @@ class NRK:
                             try:
                                 s = asyncio.ensure_future(self.series(i.get('seriesId', '')))
                                 series.append(s)
-                            except:
+                            except:  # pragma: no cover
                                 # CRAPS out if json is shit. IDK
                                 pass
                     else:
@@ -281,7 +273,7 @@ class NRK:
                             try:
                                 p = asyncio.ensure_future(self.program(i.get('programId')))
                                 programs.append(p)
-                            except:
+                            except:  # pragma: no cover
                                 # CRAPS out if json is shit. IDK
                                 pass
 

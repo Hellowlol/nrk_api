@@ -49,7 +49,7 @@ class Downloader:
         cls.files_to_download.append(media)
 
     async def start(self):
-        LOG.debug('Downloads starting soon.. %s downloads to go' % len(self.files_to_download))
+        LOG.debug('Downloads starting soon.. %s downloads to go', len(self.files_to_download))
         print('Downloads starting soon.. %s downloads to go\n' % len(self.files_to_download))
         files = await self._nrk._download_all(self.files_to_download)
         return files
@@ -169,15 +169,15 @@ class Media(Base):
         return get_it.get('mediaUrl')
 
     async def download(self, path=None):
-        LOG.debug('Adding %s to download que' % self.name)
+        LOG.debug('Adding %s to download que', self.name)
         if self.available is False:
-            LOG.debug('%s isnt available' % self.name)
+            LOG.debug('%s isnt available', self.name)
             # print('Cant download %s' % c_ount(self.name))
             return
 
         url = await self.media_url
         if url is None:
-            LOG.debug('Couldnt get a media url for %s' % self.name)
+            LOG.debug('Couldnt get a media url for %s', self.name)
             return
 
         if path is None:
@@ -238,7 +238,7 @@ class Episode(Media):
 
     async def episodes(self):
         """Get the episodes from the show."""
-        LOG.debug('Fetching all episodes for %s' % self.name)
+        LOG.debug('Fetching all episodes for %s', self.name)
         parent = await self._nrk.series(self.series_id)
         return await parent.episodes()
 
@@ -325,7 +325,7 @@ class Series(Base):
     async def reload(self, soft=False, force=False):
         """Reload a Series"""
 
-        LOG.debug('Reload %s soft %s' % (self.name, soft))
+        LOG.debug('Reload %s soft %s' , self.name, soft)
         await asyncio.sleep(0)
         if soft:
             return self
@@ -354,7 +354,7 @@ class Series(Base):
 
     async def episodes(self):
         """Return a list off off the Episodes of the show."""
-        LOG.debug('Fetching all episodes for %s' % self.name)
+        LOG.debug('Fetching all episodes for %s', self.name)
         # To silence the damn warnings.
         await asyncio.sleep(0)
 
@@ -414,7 +414,7 @@ class Category:
         eps = await self._nrk.programs(category_id=self.id)
         return eps
 
-    async def reload(self, soft=False, force=False):
+    async def reload(self, soft=False, force=False): # FIXME
         await asyncio.sleep(0)
         return self
 
