@@ -44,7 +44,7 @@ def test_series(runner, nrk):
         assert len(eps)
         assert len(seasons)
 
-        assert await serie.episode(1, 1)
+        #assert await serie.episode(1, 1)
 
     runner(gogo())
 
