@@ -55,6 +55,7 @@ class NRK:
         os.makedirs(self.save_path, exist_ok=True)
 
     async def series(self, series_id):
+        LOG.debug('Fetching series %s', series_id)
         return Series(await self.client('series/%s' % series_id), nrk=self)
 
     async def channels(self):
