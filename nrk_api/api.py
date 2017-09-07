@@ -58,6 +58,7 @@ class NRK:
         return Series(await self.client('series/%s' % series_id), nrk=self)
 
     async def channels(self):
+        LOG.debug('Fetching channels.')
         return [Channel(data, nrk=self) for data in await self.client('channels/')
                 if data.get('title') != 'alle']
 
@@ -72,6 +73,7 @@ class NRK:
 
     async def program(self, program_id):
         """ Get details about a program/series """
+        LOG.debug('Fetching program', program_id)
         item = await self.client('programs/%s' % program_id)
         if item.get('seriesId', '').strip():
             return Episode(item, nrk=self)
@@ -87,7 +89,7 @@ class NRK:
                     If raw is false it will return a Program, Episode or Serie,
                     else json
         """
-        LOG.debug('Searching for %s' % query)
+        LOG.debug('Searching for %s', query)
         response = await self.client('search/%s' % quote_plus(query))
         if response:
             if strict:
@@ -106,12 +108,13 @@ class NRK:
         return Downloader(self)
 
     async def dl(self, item, bar_nr=1):
-        """Downloads a media file
+        """Downloads a media file.
 
            Args:
                 item(tuple) = Fx ('url', 'q', 'path/to/file')
         """
         url, quality, filename = item
+        LOG.debug('Downloading %s from %s', (filename, url))
 
         if self.dry_run:
             print('Should have downloaded %s because but didnt because of -dry_run\n' % filename)
@@ -119,6 +122,8 @@ class NRK:
 
         q = '' if self.cli else '-loglevel quiet '
         cmd = 'ffmpeg %s-i %s -n -vcodec copy -acodec ac3 "%s.mkv"' % (q, url, filename)
+        LOG.debug('Starting ffmpeg with %s', cmd)
+
         proc = await asyncio.create_subprocess_shell(cmd, stderr=asyncio.subprocess.PIPE)
 
         if self.cli:
@@ -145,14 +150,16 @@ class NRK:
                         t = round(elapsed_time / dur * 100, 2)
                         await self.q.put((t, os.path.basename(filename), bar_nr))
 
-                    # This isnt needed since the exception is raised..
-                    if not line:
+                    if line.startswith(b'video:'):
                         await self.q.put((100, os.path.basename(filename), bar_nr))
                         break
+
+
             else:
                 await proc.wait()
 
     async def _helper_programs(self, program_type, category_id='all-programs'):
+        LOG.debug('Fetching %s with category %s.', (program_type, category_id))
         x = [self.program(item.get('programId')) for item in
              await self.client('categories/%s/%s' % (category_id, program_type))]
         return await asyncio.gather(*x)
@@ -168,6 +175,7 @@ class NRK:
         return await self._helper_programs('recommendedprograms', category_id=category_id)
 
     async def categories(self):
+        LOG.debug('Fetching categories.')
         return [Category(item, nrk=self) for item in await self.client('categories/')]
 
     async def parse_url(self, urls):
@@ -309,6 +317,8 @@ class NRK:
             old, new = parse_datestring(date)
             if new is None:
                 date = old.date()
+
+        LOG.debug('Fetching any media files date %s category %s media_type %s', (date, category, media_type))
 
         expires_soon = []
         all_programs = await self.site_rip()

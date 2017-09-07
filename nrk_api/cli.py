@@ -143,6 +143,9 @@ def start():  # pragma: no cover
     parser.add_argument('-u', '--url', default=False,
                         required=False, help='Use NRK URL as source. Comma separated e.g. "url1, url2"')
 
+    parser.add_argument('--debug', action='store_true', default=False,
+                        required=False, help='Enable logging.')
+
     parser.add_argument('-ea', '--expires_at', default=False,
                         required=False, help='Get all files that looses access rights between two dates or a date')
 
@@ -152,6 +155,10 @@ def start():  # pragma: no cover
               dry_run=parser.dry_run,
               subtitle=parser.subtitle,
               save_path=parser.save_path)
+
+    if parser.debug:
+        import logging
+        logging.basicConfig(level=logging.DEBUG, filename=os.path.join(nrk.save_path, 'log.txt'))
 
     if parser.search:
         data = loop.run_until_complete(search(nrk, parser.search, description=parser.description))
