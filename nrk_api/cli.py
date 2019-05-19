@@ -4,10 +4,13 @@ import os
 import sys
 import shutil
 
-from prompt_toolkit import prompt_async
+from prompt_toolkit.shortcuts import PromptSession
 
 from nrk_api.api import NRK
 from nrk_api.helpers import console_select
+
+prompt = PromptSession()
+prompt_async = prompt.prompt_async
 
 
 # Required for subprocesses to work on windows.
