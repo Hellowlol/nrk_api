@@ -18,7 +18,7 @@ except ImportError:
 
 
 REQ = ['tqdm',
-       'requests==2.17.3',
+       'requests==2.20.0',
        'aiohttp==2.1.0',
        'docopt',
        'prompt_toolkit']
